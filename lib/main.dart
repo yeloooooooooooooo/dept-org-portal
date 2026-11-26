@@ -1,121 +1,489 @@
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'models/campus_post.dart';
+import 'screens/checklist_screen.dart';
+import 'screens/create_post_screen.dart';
+import 'screens/event_details_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/officer_dashboard_screen.dart';
+import 'screens/organizations_screen.dart';
+import 'widgets/org_logo_avatar.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const DeptOrgPortalApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class DeptOrgPortalApp extends StatelessWidget {
+  const DeptOrgPortalApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'CICS Portal',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+        textTheme: GoogleFonts.interTextTheme(),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF0F2547),
+          primary: const Color(0xFF0F2547),
+          secondary: const Color(0xFFD4AF37),
+          surface: Colors.white,
+        ),
+        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const LoginScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class MainNavShell extends StatefulWidget {
+  final String userRole;
+  const MainNavShell({super.key, required this.userRole});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MainNavShell> createState() => _MainNavShellState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _MainNavShellState extends State<MainNavShell> {
+  int _selectedIndex = 0;
+  String _homeOrgFilter = 'All';
 
-  void _incrementCounter() {
+  void _openOrgInFeed(String orgCode) {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _homeOrgFilter = orgCode;
+      _selectedIndex = 0;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+    final pages = [
+      CampusHomeScreen(
+        initialOrg: _homeOrgFilter,
+        onOrgChanged: (org) => setState(() => _homeOrgFilter = org),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+      OrganizationsScreen(onSelectOrg: _openOrgInFeed),
+      const ChecklistScreen(),
+      OfficerDashboardScreen(userRole: widget.userRole),
+    ];
+
+    return Scaffold(
+      body: pages[_selectedIndex],
+      floatingActionButton: widget.userRole == 'officer' && _selectedIndex == 0
+          ? FloatingActionButton.extended(
+        backgroundColor: const Color(0xFF0F2547),
+        foregroundColor: Colors.white,
+        onPressed: () async {
+          final created = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const CreatePostScreen(orgCode: 'JPCS'),
             ),
+          );
+          if (created == true) setState(() {});
+        },
+        icon: const Icon(Icons.add, color: Color(0xFFD4AF37)),
+        label: const Text('New Post'),
+      )
+          : null,
+      bottomNavigationBar: NavigationBar(
+        backgroundColor: Colors.white,
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (index) => setState(() => _selectedIndex = index),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.business_outlined),
+            selectedIcon: Icon(Icons.business),
+            label: 'Organizations',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.assignment_turned_in_outlined),
+            selectedIcon: Icon(Icons.assignment_turned_in),
+            label: 'Checklist',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class CampusHomeScreen extends StatefulWidget {
+  final String initialOrg;
+  final ValueChanged<String> onOrgChanged;
+
+  const CampusHomeScreen({
+    super.key,
+    required this.initialOrg,
+    required this.onOrgChanged,
+  });
+
+  @override
+  State<CampusHomeScreen> createState() => _CampusHomeScreenState();
+}
+
+class _CampusHomeScreenState extends State<CampusHomeScreen> {
+  String _selectedCategory = 'All';
+
+  final List<String> _orgs = ['All', 'JPCS', 'ACCESS', 'INTESS', 'CICS SC'];
+  final List<String> _categories = [
+    'All',
+    'Events',
+    'Merch',
+    'Membership Fee',
+    'Educational',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    const navy = Color(0xFF0F2547);
+    const gold = Color(0xFFD4AF37);
+    const slateSub = Color(0xFF64748B);
+    const cardBorder = Color(0xFFE2E8F0);
+
+    final selectedOrg = widget.initialOrg;
+
+    final filteredPosts = sampleCampusPosts.where((post) {
+      if (!post.isPublished) return false;
+      final matchesOrg = selectedOrg == 'All' || post.orgCode == selectedOrg;
+      final matchesCat =
+          _selectedCategory == 'All' || post.category == _selectedCategory;
+      return matchesOrg && matchesCat;
+    }).toList();
+
+    final featuredPost = sampleCampusPosts.first;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.shield_outlined, size: 16, color: navy),
+                SizedBox(width: 6),
+                Text(
+                  'CICS Portal',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: navy,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Find your next\ncampus moment.',
+              style: TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+                height: 1.15,
+                color: navy,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Stay in the loop. Make it count.',
+              style: TextStyle(fontSize: 14, color: slateSub),
+            ),
+            const SizedBox(height: 18),
+
+            // Row 1: Organization Filter Chips
+            SizedBox(
+              height: 38,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _orgs.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final org = _orgs[index];
+                  final selected = selectedOrg == org;
+                  return ChoiceChip(
+                    label: Text(org),
+                    selected: selected,
+                    onSelected: (_) => widget.onOrgChanged(org),
+                    selectedColor: navy,
+                    backgroundColor: Colors.white,
+                    labelStyle: TextStyle(
+                      color: selected ? Colors.white : navy,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    side: BorderSide(color: selected ? navy : cardBorder),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Row 2: Category Filter Chips
+            SizedBox(
+              height: 36,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _categories.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final cat = _categories[index];
+                  final selected = _selectedCategory == cat;
+                  return FilterChip(
+                    label: Text(cat),
+                    selected: selected,
+                    onSelected: (_) => setState(() => _selectedCategory = cat),
+                    selectedColor: navy.withValues(alpha: 0.12),
+                    backgroundColor: Colors.white,
+                    checkmarkColor: navy,
+                    labelStyle: TextStyle(
+                      color: navy,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 12,
+                    ),
+                    side: BorderSide(color: selected ? navy : cardBorder),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 22),
+
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Your campus feed',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: navy,
+                  ),
+                ),
+                Text(
+                  'Latest first',
+                  style: TextStyle(fontSize: 12, color: slateSub),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            if (selectedOrg == 'All' && _selectedCategory == 'All') ...[
+              InkWell(
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EventDetailsScreen(post: featuredPost),
+                    ),
+                  );
+                  setState(() {});
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF0F2547), Color(0xFF1D4ED8)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'CICS TECH SUMMIT / 2026',
+                              style: TextStyle(
+                                color: gold,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              '04 DEC',
+                              style: TextStyle(
+                                color: navy,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'BUILD. BEYOND.',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const Text(
+                        'Ideas today. Impact tomorrow.',
+                        style:
+                        TextStyle(color: Color(0xFFE2E8F0), fontSize: 13),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'JPCS • Dec 04 • 9:00 AM • CICS Auditorium',
+                              style: TextStyle(
+                                color: Color(0xFFCBD5E1),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: gold,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Text(
+                              'View event',
+                              style: TextStyle(
+                                color: navy,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+
+            ...filteredPosts.map((post) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: InkWell(
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EventDetailsScreen(post: post),
+                      ),
+                    );
+                    setState(() {});
+                  },
+                  borderRadius: BorderRadius.circular(18),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: cardBorder),
+                    ),
+                    child: Row(
+                      children: [
+                        OrgLogoAvatar(orgCode: post.orgCode, size: 46),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    post.orgCode,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: slateSub,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      post.category,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: navy,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                post.title,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: navy,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                post.fullDate,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: slateSub,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right, color: slateSub),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
       ),
     );
   }
