@@ -3,7 +3,7 @@ class CampusPost {
   final String orgCode;
   final String orgFullName;
   final String title;
-  final String category; // Events, Merch, Membership Fee, Educational
+  final String category;
   final String dateBadge;
   final String fullDate;
   final String timeRange;
@@ -14,9 +14,9 @@ class CampusPost {
   final String pointPersonEmail;
   final String formUrl;
   final String publishedDateLabel;
-  final bool isFeatured;
-  bool isPublished;
   bool isDone;
+  bool isPublished;
+  bool isArchived;
 
   CampusPost({
     required this.id,
@@ -24,7 +24,7 @@ class CampusPost {
     required this.orgFullName,
     required this.title,
     required this.category,
-    required this.dateBadge,
+    this.dateBadge = '04 DEC',
     required this.fullDate,
     required this.timeRange,
     required this.location,
@@ -32,18 +32,67 @@ class CampusPost {
     required this.pointPersonName,
     required this.pointPersonRole,
     required this.pointPersonEmail,
-    required this.formUrl,
-    this.publishedDateLabel = 'Nov 27, 2026',
-    this.isFeatured = false,
-    this.isPublished = true,
+    this.formUrl = 'https://forms.gle/example',
+    this.publishedDateLabel = 'NOV 27',
     this.isDone = false,
+    this.isPublished = true,
+    this.isArchived = false,
   });
+
+  // Converts model into a Firestore-ready Map
+  Map<String, dynamic> toMap() {
+    return {
+      'orgCode': orgCode,
+      'orgFullName': orgFullName,
+      'title': title,
+      'category': category,
+      'dateBadge': dateBadge,
+      'fullDate': fullDate,
+      'timeRange': timeRange,
+      'location': location,
+      'description': description,
+      'pointPersonName': pointPersonName,
+      'pointPersonRole': pointPersonRole,
+      'pointPersonEmail': pointPersonEmail,
+      'formUrl': formUrl,
+      'publishedDateLabel': publishedDateLabel,
+      'isPublished': isPublished,
+    };
+  }
+
+  // Rebuilds model from a Firestore document snapshot
+  factory CampusPost.fromMap(
+      String id,
+      Map<String, dynamic> map, {
+        List<String> completedIds = const [],
+      }) {
+    return CampusPost(
+      id: id,
+      orgCode: (map['orgCode'] ?? 'JPCS').toString(),
+      orgFullName: (map['orgFullName'] ?? '').toString(),
+      title: (map['title'] ?? '').toString(),
+      category: (map['category'] ?? 'Events').toString(),
+      dateBadge: (map['dateBadge'] ?? '04 DEC').toString(),
+      fullDate: (map['fullDate'] ?? '').toString(),
+      timeRange: (map['timeRange'] ?? '').toString(),
+      location: (map['location'] ?? '').toString(),
+      description: (map['description'] ?? '').toString(),
+      pointPersonName: (map['pointPersonName'] ?? '').toString(),
+      pointPersonRole: (map['pointPersonRole'] ?? '').toString(),
+      pointPersonEmail: (map['pointPersonEmail'] ?? '').toString(),
+      formUrl: (map['formUrl'] ?? 'https://forms.gle/example').toString(),
+      publishedDateLabel: (map['publishedDateLabel'] ?? 'NOV 27').toString(),
+      isPublished: (map['isPublished'] as bool?) ?? true,
+      isDone: completedIds.contains(id),
+      isArchived: (map['isArchived'] as bool?) ?? false,
+    );
+  }
 }
 
-// Sample CICS Portal data matching your mockups
+// Temporary local fallback data (kept empty-safe for backend swap)
 final List<CampusPost> sampleCampusPosts = [
   CampusPost(
-    id: '1',
+    id: 'post_1',
     orgCode: 'JPCS',
     orgFullName: 'Junior Philippine Computer Society',
     title: 'CICS Tech Summit 2026',
@@ -53,108 +102,79 @@ final List<CampusPost> sampleCampusPosts = [
     timeRange: '9:00 AM - 4:00 PM',
     location: 'CICS Auditorium • Main campus',
     description:
-    'Connect with student innovators and industry mentors for talks, demos, and hands-on learning. Bring your curiosity. Build what comes next.',
+    'Connect with student innovators, industry speakers, and project teams across the department. Open to all CICS students.',
     pointPersonName: 'Andrea Reyes',
     pointPersonRole: 'JPCS Event coordinator',
     pointPersonEmail: 'andrea.reyes@cics.edu',
-    formUrl: 'https://forms.google.com',
-    publishedDateLabel: 'Nov 26, 2026',
-    isFeatured: true,
-    isPublished: true,
+    publishedDateLabel: 'NOV 20',
   ),
   CampusPost(
-    id: '2',
-    orgCode: 'JPCS',
-    orgFullName: 'Junior Philippine Computer Society',
-    title: 'Git & GitHub essentials',
-    category: 'Educational',
-    dateBadge: '10 DEC',
-    fullDate: 'December 10, 2026',
-    timeRange: '1:00 PM - 4:00 PM',
-    location: 'Computer Lab 3',
-    description:
-    'Turn curiosity into skills through hands-on version control, branching, and pull request workflows for student developers.',
-    pointPersonName: 'Andrea Reyes',
-    pointPersonRole: 'JPCS Workshop Lead',
-    pointPersonEmail: 'andrea.reyes@cics.edu',
-    formUrl: 'https://forms.google.com',
-    publishedDateLabel: 'Nov 24, 2026',
-    isPublished: true,
-  ),
-  CampusPost(
-    id: '3',
-    orgCode: 'JPCS',
-    orgFullName: 'Junior Philippine Computer Society',
-    title: 'JPCS lanyard pre-order',
-    category: 'Merch',
-    dateBadge: '15 DEC',
-    fullDate: 'Orders close Dec 15, 2026',
-    timeRange: 'Online Pre-Order',
-    location: 'CICS Student Lounge',
-    description:
-    'Official JPCS navy & gold woven lanyard pre-order. Reserve yours through the form before the cutoff.',
-    pointPersonName: 'Andrea Reyes',
-    pointPersonRole: 'JPCS Business Manager',
-    pointPersonEmail: 'andrea.reyes@cics.edu',
-    formUrl: 'https://forms.google.com',
-    publishedDateLabel: 'Nov 22, 2026',
-    isPublished: true,
-  ),
-  CampusPost(
-    id: '4',
-    orgCode: 'JPCS',
-    orgFullName: 'Junior Philippine Computer Society',
-    title: 'Freshmen coding bootcamp',
-    category: 'Educational',
-    dateBadge: '18 DEC',
-    fullDate: 'December 18, 2026',
-    timeRange: '9:00 AM - 12:00 PM',
-    location: 'CICS Lab 1',
-    description:
-    'Draft announcement for upcoming introductory programming clinic for first-year CICS students.',
-    pointPersonName: 'Andrea Reyes',
-    pointPersonRole: 'JPCS Event coordinator',
-    pointPersonEmail: 'andrea.reyes@cics.edu',
-    formUrl: 'https://forms.google.com',
-    publishedDateLabel: 'Draft',
-    isPublished: false,
-  ),
-  CampusPost(
-    id: '5',
+    id: 'post_2',
     orgCode: 'CICS SC',
-    orgFullName: 'Student Council',
-    title: 'CICS organization shirt',
+    orgFullName: 'CICS Student Council',
+    title: 'Official Department Shirt Pre-order',
     category: 'Merch',
-    dateBadge: '08 DEC',
-    fullDate: 'Orders close Dec 08, 2026',
-    timeRange: 'Online Pre-Order',
-    location: 'CICS Student Lounge',
+    dateBadge: '29 NOV',
+    fullDate: 'November 29, 2026',
+    timeRange: 'Until 5:00 PM',
+    location: 'CICS Student Lounge • Ground Floor',
     description:
-    'Official CICS department shirt pre-order for SY 2026–2027. Submit your size and proof of payment via the official order form.',
+    'Reserve your official Navy & Gold CICS Department Shirt for SY 2026–2027. Sizes XS to 3XL available.',
     pointPersonName: 'Marco Santos',
-    pointPersonRole: 'CICS SC Business Manager',
+    pointPersonRole: 'CICS SC Finance Officer',
     pointPersonEmail: 'marco.santos@cics.edu',
-    formUrl: 'https://forms.google.com',
-    publishedDateLabel: 'Nov 25, 2026',
-    isPublished: true,
+    publishedDateLabel: 'NOV 18',
   ),
   CampusPost(
-    id: '6',
+    id: 'post_3',
     orgCode: 'ACCESS',
-    orgFullName: 'ACCESS Organization',
-    title: 'Annual membership fee',
+    orgFullName: 'Association of Committed Computer Science Students',
+    title: 'ACCESS Annual Membership Fee',
     category: 'Membership Fee',
     dateBadge: '01 DEC',
-    fullDate: 'Due Dec 01, 2026',
+    fullDate: 'December 01, 2026',
     timeRange: '8:00 AM - 5:00 PM',
-    location: 'CICS Building Room 204',
+    location: 'CICS Building, Room 204',
     description:
-    'Settle your 2026–2027 ACCESS membership dues to unlock workshop passes, voting rights, and org merchandise discounts.',
+    'Settle your annual ACCESS membership dues (₱120.00) to unlock workshop certificates and voting rights.',
     pointPersonName: 'Claire Mendoza',
-    pointPersonRole: 'ACCESS Finance Officer',
+    pointPersonRole: 'ACCESS Treasurer',
     pointPersonEmail: 'claire.mendoza@cics.edu',
-    formUrl: 'https://forms.google.com',
-    publishedDateLabel: 'Nov 20, 2026',
-    isPublished: true,
+    publishedDateLabel: 'NOV 15',
+  ),
+  CampusPost(
+    id: 'post_4',
+    orgCode: 'INTESS',
+    orgFullName: 'Information Technology Society of Students',
+    title: 'Git & GitHub Bootcamp for Beginners',
+    category: 'Educational',
+    dateBadge: '08 DEC',
+    fullDate: 'December 08, 2026',
+    timeRange: '1:00 PM - 4:30 PM',
+    location: 'CICS Computer Lab 3',
+    description:
+    'Hands-on session covering branching, pull requests, and collaborative workflows. Bring your laptop.',
+    pointPersonName: 'Liam Cruz',
+    pointPersonRole: 'INTESS Technical Head',
+    pointPersonEmail: 'liam.cruz@cics.edu',
+    publishedDateLabel: 'NOV 22',
+  ),
+  CampusPost(
+    id: 'post_5',
+    orgCode: 'JPCS',
+    orgFullName: 'Junior Philippine Computer Society',
+    title: 'Mobile App Hackathon Mechanics (Draft)',
+    category: 'Events',
+    dateBadge: '15 JAN',
+    fullDate: 'January 15, 2027',
+    timeRange: '8:00 AM - 6:00 PM',
+    location: 'CICS Innovation Hub',
+    description:
+    'Draft mechanics and judging rubrics for the upcoming CICS Flutter & Mobile App Hackathon.',
+    pointPersonName: 'Andrea Reyes',
+    pointPersonRole: 'JPCS Event coordinator',
+    pointPersonEmail: 'andrea.reyes@cics.edu',
+    publishedDateLabel: 'DRAFT',
+    isPublished: false,
   ),
 ];

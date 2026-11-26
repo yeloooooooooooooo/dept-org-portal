@@ -1,231 +1,328 @@
 import 'package:flutter/material.dart';
+import '../models/campus_post.dart';
+import '../services/portal_repository.dart';
 import '../widgets/org_logo_avatar.dart';
+import '../widgets/portal_background.dart';
 import 'org_details_screen.dart';
 
-class OrganizationsScreen extends StatelessWidget {
+class CicsOrgProfile {
+  final String code;
+  final String fullName;
+  final String focus;
+  String motto;
+  String about;
+  String adviser;
+  String officeLocation;
+
+  CicsOrgProfile({
+    required this.code,
+    required this.fullName,
+    required this.focus,
+    required this.motto,
+    required this.about,
+    required this.adviser,
+    required this.officeLocation,
+  });
+
+  String get officialEmail {
+    final slug = code.toLowerCase().replaceAll(' ', '');
+    return '$slug.alangilan@g.batstate-u.edu.ph';
+  }
+}
+
+final cicsOrgProfiles = <String, CicsOrgProfile>{
+  'JPCS': CicsOrgProfile(
+    code: 'JPCS',
+    fullName: 'Junior Philippine Computer Society',
+    focus: 'Computing & Tech Innovation',
+    motto: 'Connecting Future IT Leaders Across the Nation',
+    about:
+    'The official student chapter of the Junior Philippine Computer Society at BatStateU Alangilan, empowering CICS students through hackathons, coding bootcamps, and industry tech talks.',
+    adviser: 'Engr. Mark Anthony Reyes, MIT',
+    officeLocation: 'CICS Building, 2nd Floor • Org Room A',
+  ),
+  'ACCESS': CicsOrgProfile(
+    code: 'ACCESS',
+    fullName: 'Association of Committed Computer Science Students',
+    focus: 'Computer Science & Algorithms',
+    motto: 'Innovating Through Logic, Research, and Code',
+    about:
+    'The premier academic organization for Bachelor of Science in Computer Science students, spearheading algorithmic workshops, research colloquiums, and software engineering sprints.',
+    adviser: 'Prof. Clarissa Mae Mendoza, MSCS',
+    officeLocation: 'CICS Building, 2nd Floor • Org Room B',
+  ),
+  'INTESS': CicsOrgProfile(
+    code: 'INTESS',
+    fullName: 'Integrated Information Technology Student Society',
+    focus: 'Information Technology & Systems',
+    motto: 'Bridging Systems, Enterprise, and Digital Solutions',
+    about:
+    'The official program organization for BS Information Technology students at BatStateU Alangilan, focused on web/mobile development, networking labs, and IT industry readiness.',
+    adviser: 'Prof. Jerome Patrick Villanueva, MIT',
+    officeLocation: 'CICS Building, 3rd Floor • IT Hub',
+  ),
+  'CICS SC': CicsOrgProfile(
+    code: 'CICS SC',
+    fullName: 'CICS Alangilan - Student Council',
+    focus: 'Student Governance & Welfare',
+    motto: 'Service, Integrity, and Excellence for Every CICS Student',
+    about:
+    'The highest student governing body of the College of Informatics and Computing Sciences at BatStateU Alangilan, championing student welfare, college-wide assemblies, and institutional representation.',
+    adviser: 'Dr. Elena Santos-Bautista',
+    officeLocation: 'CICS Building, Ground Floor • Student Council Office',
+  ),
+};
+
+class OrganizationsScreen extends StatefulWidget {
   final ValueChanged<String> onSelectOrg;
 
   const OrganizationsScreen({super.key, required this.onSelectOrg});
 
   @override
+  State<OrganizationsScreen> createState() => _OrganizationsScreenState();
+}
+
+class _OrganizationsScreenState extends State<OrganizationsScreen> {
+  static const _orgOrder = ['JPCS', 'ACCESS', 'INTESS', 'CICS SC'];
+
+  @override
   Widget build(BuildContext context) {
     const navy = Color(0xFF0F2547);
+    const gold = Color(0xFFD4AF37);
     const slateSub = Color(0xFF64748B);
-    const cardBorder = Color(0xFFE2E8F0);
 
-    final orgList = [
-      {
-        'code': 'JPCS',
-        'name': 'JPCS',
-        'fullName': 'Junior Philippine Computer Society',
-        'tagline':
-        'Code, collaborate, and grow with a community of student developers.',
-        'about':
-        'JPCS is the premier student organization for aspiring software engineers, web/mobile developers, and competitive programmers in CICS. We host hackathons, coding bootcamps, and industry tech talks.',
-        'president': 'Andrea Reyes',
-        'email': 'jpcs@cics.edu',
-        'officeLocation': 'CICS Building, Room 202',
-        'tags': ['Software Dev', 'Hackathons', 'Tech Talks'],
-        'isMember': true,
-      },
-      {
-        'code': 'ACCESS',
-        'name': 'ACCESS',
-        'fullName': 'Association of Committed Computer Science Students',
-        'tagline':
-        'Connect through student-led activities, shared learning, and campus initiatives.',
-        'about':
-        'ACCESS fosters peer mentorship, research colloquiums, and community outreach programs designed to help computing students thrive academically and socially.',
-        'president': 'Claire Mendoza',
-        'email': 'access@cics.edu',
-        'officeLocation': 'CICS Building, Room 204',
-        'tags': ['Peer Mentoring', 'Community', 'Research'],
-        'isMember': true,
-      },
-      {
-        'code': 'INTESS',
-        'name': 'INTESS',
-        'fullName': 'Information Technology Society of Students',
-        'tagline':
-        'Turn curiosity into skills through technology projects and workshops.',
-        'about':
-        'INTESS bridges classroom theory and hands-on IT infrastructure, cybersecurity, UI/UX design, and systems administration through practical lab workshops.',
-        'president': 'Liam Cruz',
-        'email': 'intess@cics.edu',
-        'officeLocation': 'CICS Computer Lab Wing, 3F',
-        'tags': ['IT Infrastructure', 'Cybersecurity', 'Workshops'],
-        'isMember': false,
-      },
-      {
-        'code': 'CICS SC',
-        'name': 'CICS Student Council',
-        'fullName': 'CICS Student Council',
-        'tagline':
-        'Your voice in CICS. Discover student services, campus updates, and advocacy.',
-        'about':
-        'The official student governing body of the College of Information and Computing Sciences, representing student welfare, college-wide assemblies, and official department merchandise.',
-        'president': 'Marco Santos',
-        'email': 'sc@cics.edu',
-        'officeLocation': 'CICS Student Lounge, Ground Floor',
-        'tags': ['Student Governance', 'Campus Events', 'Official Merch'],
-        'isMember': true,
-      },
-    ];
+    final currentUser = PortalRepository.instance.currentUser;
+    final isOfficerAccount =
+        currentUser.email.toLowerCase().contains('alangilan@g.batstate-u.edu.ph') ||
+            currentUser.fullName.toLowerCase().contains('officer');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: SafeArea(
+      body: PortalBackground(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+          padding: const EdgeInsets.only(bottom: 100),
           children: [
-            const Row(
-              children: [
-                Icon(Icons.business_outlined, size: 16, color: navy),
-                SizedBox(width: 6),
-                Text(
-                  'Organizations',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: navy,
-                  ),
+            PortalHeroHeader(
+              bottomPadding: 30,
+              child: Center(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: gold.withValues(alpha: 0.45)),
+                      ),
+                      child: const Text(
+                        'BATSTATEU ALANGILAN • CICS',
+                        style: TextStyle(
+                          color: gold,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.9,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Student Organizations',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Explore accredited CICS student organizations and council hubs.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: Color(0xFFCBD5E1)),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Find your people.',
-              style: TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.w800,
-                height: 1.15,
-                color: navy,
-                letterSpacing: -0.5,
               ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Tap any organization to explore its profile and announcements.',
-              style: TextStyle(fontSize: 14, color: slateSub),
             ),
             const SizedBox(height: 20),
-            const Text(
-              'EXPLORE YOUR ORGANIZATIONS',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.8,
-                color: slateSub,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ...orgList.map((org) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: InkWell(
-                  onTap: () {
-                    Navigator.push(
+            PortalResponsiveGrid(
+              spacing: 16,
+              children: _orgOrder.map((code) {
+                final org = cicsOrgProfiles[code]!;
+                final isOwnOrg =
+                    isOfficerAccount && currentUser.orgCode == org.code;
+                final postCount = sampleCampusPosts
+                    .where((p) =>
+                p.orgCode == org.code && p.isPublished && !p.isArchived)
+                    .length;
+
+                return InkWell(
+                  onTap: () async {
+                    await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => OrgDetailsScreen(orgData: org),
+                        builder: (_) => OrgDetailsScreen(
+                          orgCode: org.code,
+                          onViewFeed: () => widget.onSelectOrg(org.code),
+                        ),
                       ),
                     );
+                    setState(() {});
                   },
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(24),
                   child: Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: cardBorder),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: isOwnOrg
+                            ? gold.withValues(alpha: 0.75)
+                            : Colors.transparent,
+                        width: 1.6,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: navy.withValues(alpha: 0.08),
+                          blurRadius: 20,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            OrgLogoAvatar(
-                                orgCode: org['code'].toString(), size: 48),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
+                            Row(
+                              children: [
+                                OrgLogoAvatar(orgCode: org.code, size: 50),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                     children: [
-                                      Expanded(
-                                        child: Text(
-                                          org['name'].toString(),
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w800,
-                                            color: navy,
+                                      Row(
+                                        children: [
+                                          Text(
+                                            org.code,
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w900,
+                                              color: navy,
+                                            ),
                                           ),
+                                          if (isOwnOrg) ...[
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding:
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 2.5),
+                                              decoration: BoxDecoration(
+                                                color: navy,
+                                                borderRadius:
+                                                BorderRadius.circular(8),
+                                              ),
+                                              child: const Text(
+                                                'Your Org',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: gold,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        org.focus,
+                                        style: const TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: slateSub,
                                         ),
                                       ),
-                                      const Icon(Icons.chevron_right,
-                                          color: slateSub, size: 20),
                                     ],
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    org['tagline'].toString(),
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      color: slateSub,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              org.fullName,
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                color: navy,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '"${org.motto}"',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                                color: slateSub,
+                                height: 1.35,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      OrgDetailsScreen(orgData: org),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                              );
-                            },
-                            style: FilledButton.styleFrom(
-                              backgroundColor: const Color(0xFFF1F5F9),
-                              foregroundColor: navy,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 13),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Explore Org & Announcements',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
+                                child: Text(
+                                  '$postCount active ${postCount == 1 ? 'post' : 'posts'}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: navy,
                                   ),
                                 ),
-                                Icon(Icons.arrow_forward, size: 18),
-                              ],
-                            ),
+                              ),
+                              Row(
+                                children: [
+                                  Text(
+                                    isOwnOrg ? 'Manage & View' : 'View Org',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: navy,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.arrow_forward_rounded,
+                                      size: 16, color: navy),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-              );
-            }),
+                );
+              }).toList(),
+            ),
           ],
         ),
       ),

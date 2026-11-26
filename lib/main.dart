@@ -6,8 +6,11 @@ import 'screens/create_post_screen.dart';
 import 'screens/event_details_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/officer_dashboard_screen.dart';
+import 'screens/officer_events_screen.dart';
 import 'screens/organizations_screen.dart';
+import 'services/portal_repository.dart';
 import 'widgets/org_logo_avatar.dart';
+import 'widgets/portal_background.dart';
 
 void main() {
   runApp(const DeptOrgPortalApp());
@@ -23,14 +26,14 @@ class DeptOrgPortalApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        textTheme: GoogleFonts.interTextTheme(),
+        textTheme: GoogleFonts.plusJakartaSansTextTheme(),
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF0F2547),
           primary: const Color(0xFF0F2547),
           secondary: const Color(0xFFD4AF37),
           surface: Colors.white,
         ),
-        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+        scaffoldBackgroundColor: const Color(0xFFF3F6FC),
       ),
       home: const LoginScreen(),
     );
@@ -58,19 +61,22 @@ class _MainNavShellState extends State<MainNavShell> {
 
   @override
   Widget build(BuildContext context) {
+    final isOfficer = widget.userRole == 'officer';
+
     final pages = [
       CampusHomeScreen(
         initialOrg: _homeOrgFilter,
         onOrgChanged: (org) => setState(() => _homeOrgFilter = org),
       ),
       OrganizationsScreen(onSelectOrg: _openOrgInFeed),
-      const ChecklistScreen(),
+      isOfficer ? const OfficerEventsScreen() : const ChecklistScreen(),
       OfficerDashboardScreen(userRole: widget.userRole),
     ];
 
     return Scaffold(
+      extendBody: true,
       body: pages[_selectedIndex],
-      floatingActionButton: widget.userRole == 'officer' && _selectedIndex == 0
+      floatingActionButton: isOfficer && _selectedIndex == 0
           ? FloatingActionButton.extended(
         backgroundColor: const Color(0xFF0F2547),
         foregroundColor: Colors.white,
@@ -78,41 +84,146 @@ class _MainNavShellState extends State<MainNavShell> {
           final created = await Navigator.push<bool>(
             context,
             MaterialPageRoute(
-              builder: (_) => const CreatePostScreen(orgCode: 'JPCS'),
+              builder: (_) => CreatePostScreen(
+                orgCode: PortalRepository.instance.currentUser.orgCode,
+              ),
             ),
           );
           if (created == true) setState(() {});
         },
-        icon: const Icon(Icons.add, color: Color(0xFFD4AF37)),
-        label: const Text('New Post'),
+        icon: const Icon(Icons.add_circle_outline,
+            color: Color(0xFFD4AF37)),
+        label: const Text(
+          'Post Update',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
       )
           : null,
-      bottomNavigationBar: NavigationBar(
-        backgroundColor: Colors.white,
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) => setState(() => _selectedIndex = index),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Center(
+            heightFactor: 1,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: Container(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF09162E), Color(0xFF0F2547)],
+                  ),
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(
+                    color: const Color(0xFFD4AF37).withValues(alpha: 0.35),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0F2547).withValues(alpha: 0.28),
+                      blurRadius: 22,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _NavPillItem(
+                      icon: Icons.explore_outlined,
+                      activeIcon: Icons.explore_rounded,
+                      label: 'Discover',
+                      selected: _selectedIndex == 0,
+                      onTap: () => setState(() => _selectedIndex = 0),
+                    ),
+                    _NavPillItem(
+                      icon: Icons.groups_outlined,
+                      activeIcon: Icons.groups_rounded,
+                      label: 'Orgs',
+                      selected: _selectedIndex == 1,
+                      onTap: () => setState(() => _selectedIndex = 1),
+                    ),
+                    _NavPillItem(
+                      icon: isOfficer
+                          ? Icons.inventory_2_outlined
+                          : Icons.task_alt_outlined,
+                      activeIcon: isOfficer
+                          ? Icons.inventory_2_rounded
+                          : Icons.task_alt_rounded,
+                      label: isOfficer ? 'Manage' : 'Tasks',
+                      selected: _selectedIndex == 2,
+                      onTap: () => setState(() => _selectedIndex = 2),
+                    ),
+                    _NavPillItem(
+                      icon: Icons.badge_outlined,
+                      activeIcon: Icons.badge_rounded,
+                      label: 'Profile',
+                      selected: _selectedIndex == 3,
+                      onTap: () => setState(() => _selectedIndex = 3),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.business_outlined),
-            selectedIcon: Icon(Icons.business),
-            label: 'Organizations',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.assignment_turned_in_outlined),
-            selectedIcon: Icon(Icons.assignment_turned_in),
-            label: 'Checklist',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NavPillItem extends StatelessWidget {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _NavPillItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const navy = Color(0xFF0F2547);
+    const gold = Color(0xFFD4AF37);
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: EdgeInsets.symmetric(
+          horizontal: selected ? 16 : 12,
+          vertical: 10,
+        ),
+        decoration: BoxDecoration(
+          color: selected ? gold : Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              selected ? activeIcon : icon,
+              size: 21,
+              color: selected ? navy : const Color(0xFFCBD5E1),
+            ),
+            if (selected) ...[
+              const SizedBox(width: 7),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: navy,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -134,9 +245,11 @@ class CampusHomeScreen extends StatefulWidget {
 
 class _CampusHomeScreenState extends State<CampusHomeScreen> {
   String _selectedCategory = 'All';
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
-  final List<String> _orgs = ['All', 'JPCS', 'ACCESS', 'INTESS', 'CICS SC'];
-  final List<String> _categories = [
+  static const _orgs = ['All', 'JPCS', 'ACCESS', 'INTESS', 'CICS SC'];
+  static const _categories = [
     'All',
     'Events',
     'Merch',
@@ -145,343 +258,713 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
   ];
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Iterable<Color> _cardGradient(String category) {
+    switch (category) {
+      case 'Events':
+        return const [Color(0xFF0F2547), Color(0xFF2563EB)];
+      case 'Merch':
+        return const [Color(0xFF1E293B), Color(0xFFB45309)];
+      case 'Membership Fee':
+        return const [Color(0xFF064E3B), Color(0xFF059669)];
+      case 'Educational':
+        return const [Color(0xFF311042), Color(0xFF7C3AED)];
+      default:
+        return const [Color(0xFF0F2547), Color(0xFF1E3A8A)];
+    }
+  }
+
+  IconData _categoryIcon(String category) {
+    switch (category) {
+      case 'Events':
+        return Icons.celebration_rounded;
+      case 'Merch':
+        return Icons.checkroom_rounded;
+      case 'Membership Fee':
+        return Icons.verified_user_rounded;
+      case 'Educational':
+        return Icons.terminal_rounded;
+      default:
+        return Icons.auto_awesome_rounded;
+    }
+  }
+
+  void _openFilterSheet() {
+    const navy = Color(0xFF0F2547);
+    const gold = Color(0xFFD4AF37);
+    const slateSub = Color(0xFF64748B);
+    const cardBorder = Color(0xFFE2E8F0);
+
+    String tempOrg = widget.initialOrg;
+    String tempCat = _selectedCategory;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(22, 14, 22, 28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: cardBorder,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Filter Campus Feed',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                          color: navy,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setModalState(() {
+                            tempOrg = 'All';
+                            tempCat = 'All';
+                          });
+                        },
+                        child: const Text(
+                          'Reset all',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: slateSub,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'ORGANIZATION',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                      color: slateSub,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _orgs.map((org) {
+                      final selected = tempOrg == org;
+                      return ChoiceChip(
+                        label: Text(org),
+                        selected: selected,
+                        onSelected: (_) => setModalState(() => tempOrg = org),
+                        selectedColor: navy,
+                        backgroundColor: const Color(0xFFF8FAFC),
+                        labelStyle: TextStyle(
+                          color: selected ? Colors.white : navy,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                        side: BorderSide(color: selected ? navy : cardBorder),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'CATEGORY',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                      color: slateSub,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _categories.map((cat) {
+                      final selected = tempCat == cat;
+                      return ChoiceChip(
+                        label: Text(cat),
+                        selected: selected,
+                        onSelected: (_) => setModalState(() => tempCat = cat),
+                        selectedColor: gold.withValues(alpha: 0.25),
+                        backgroundColor: const Color(0xFFF8FAFC),
+                        labelStyle: TextStyle(
+                          color: navy,
+                          fontWeight:
+                          selected ? FontWeight.w800 : FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                        side: BorderSide(
+                          color: selected ? gold : cardBorder,
+                          width: selected ? 1.5 : 1,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: () {
+                      widget.onOrgChanged(tempOrg);
+                      setState(() => _selectedCategory = tempCat);
+                      Navigator.pop(sheetContext);
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: navy,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text(
+                      'Show Results',
+                      style:
+                      TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _centeredBody(Widget child) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     const navy = Color(0xFF0F2547);
     const gold = Color(0xFFD4AF37);
     const slateSub = Color(0xFF64748B);
     const cardBorder = Color(0xFFE2E8F0);
 
+    final user = PortalRepository.instance.currentUser;
+    final firstName = user.fullName.split(' ').first;
     final selectedOrg = widget.initialOrg;
 
-    final filteredPosts = sampleCampusPosts.where((post) {
-      if (!post.isPublished) return false;
+    final activeFilterCount =
+        (selectedOrg != 'All' ? 1 : 0) + (_selectedCategory != 'All' ? 1 : 0);
+
+    final publishedPosts = sampleCampusPosts
+        .where((p) => p.isPublished && !p.isArchived)
+        .toList();
+    final pendingCount = publishedPosts.where((p) => !p.isDone).length;
+
+    final filteredPosts = publishedPosts.where((post) {
       final matchesOrg = selectedOrg == 'All' || post.orgCode == selectedOrg;
       final matchesCat =
           _selectedCategory == 'All' || post.category == _selectedCategory;
-      return matchesOrg && matchesCat;
+      final q = _searchQuery.trim().toLowerCase();
+      final matchesSearch = q.isEmpty ||
+          post.title.toLowerCase().contains(q) ||
+          post.orgCode.toLowerCase().contains(q) ||
+          post.location.toLowerCase().contains(q);
+      return matchesOrg && matchesCat && matchesSearch;
     }).toList();
 
-    final featuredPost = sampleCampusPosts.first;
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: SafeArea(
+      body: PortalBackground(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+          padding: const EdgeInsets.only(bottom: 100),
           children: [
-            const Row(
-              children: [
-                Icon(Icons.shield_outlined, size: 16, color: navy),
-                SizedBox(width: 6),
-                Text(
-                  'CICS Portal',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: navy,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Find your next\ncampus moment.',
-              style: TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.w800,
-                height: 1.15,
-                color: navy,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Stay in the loop. Make it count.',
-              style: TextStyle(fontSize: 14, color: slateSub),
-            ),
-            const SizedBox(height: 18),
-
-            // Row 1: Organization Filter Chips
-            SizedBox(
-              height: 38,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _orgs.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final org = _orgs[index];
-                  final selected = selectedOrg == org;
-                  return ChoiceChip(
-                    label: Text(org),
-                    selected: selected,
-                    onSelected: (_) => widget.onOrgChanged(org),
-                    selectedColor: navy,
-                    backgroundColor: Colors.white,
-                    labelStyle: TextStyle(
-                      color: selected ? Colors.white : navy,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                    side: BorderSide(color: selected ? navy : cardBorder),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            // Row 2: Category Filter Chips
-            SizedBox(
-              height: 36,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _categories.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final cat = _categories[index];
-                  final selected = _selectedCategory == cat;
-                  return FilterChip(
-                    label: Text(cat),
-                    selected: selected,
-                    onSelected: (_) => setState(() => _selectedCategory = cat),
-                    selectedColor: navy.withValues(alpha: 0.12),
-                    backgroundColor: Colors.white,
-                    checkmarkColor: navy,
-                    labelStyle: TextStyle(
-                      color: navy,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      fontSize: 12,
-                    ),
-                    side: BorderSide(color: selected ? navy : cardBorder),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 22),
-
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Your campus feed',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: navy,
-                  ),
-                ),
-                Text(
-                  'Latest first',
-                  style: TextStyle(fontSize: 12, color: slateSub),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            if (selectedOrg == 'All' && _selectedCategory == 'All') ...[
-              InkWell(
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => EventDetailsScreen(post: featuredPost),
-                    ),
-                  );
-                  setState(() {});
-                },
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF0F2547), Color(0xFF1D4ED8)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            PortalHeroHeader(
+              bottomPadding: 38,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                            width: 36,
+                            height: 36,
+                            padding: const EdgeInsets.all(2.5),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
+                              color: Colors.white.withValues(alpha: 0.14),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: gold, width: 1.5),
                             ),
-                            child: const Text(
-                              'CICS TECH SUMMIT / 2026',
-                              style: TextStyle(
-                                color: gold,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 11,
+                            child: ClipOval(
+                              child: Image.asset(
+                                'assets/images/cics_logo.png',
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => const Icon(
+                                  Icons.shield_rounded,
+                                  color: gold,
+                                  size: 18,
+                                ),
                               ),
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text(
-                              '04 DEC',
-                              style: TextStyle(
-                                color: navy,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 11,
-                              ),
+                          const SizedBox(width: 10),
+                          const Text(
+                            'CICS HUB',
+                            style: TextStyle(
+                              color: gold,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
+                              letterSpacing: 1.0,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 14),
-                      const Text(
-                        'BUILD. BEYOND.',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: gold.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Text(
+                          pendingCount == 0
+                              ? 'All caught up! 🎉'
+                              : '$pendingCount tasks waiting',
+                          style: const TextStyle(
+                            color: gold,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
-                      const Text(
-                        'Ideas today. Impact tomorrow.',
-                        style:
-                        TextStyle(color: Color(0xFFE2E8F0), fontSize: 13),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'JPCS • Dec 04 • 9:00 AM • CICS Auditorium',
-                              style: TextStyle(
-                                color: Color(0xFFCBD5E1),
-                                fontSize: 12,
-                              ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Hey $firstName! 👋',
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: -0.4,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'See what your orgs are building this week.',
+                    style: TextStyle(fontSize: 13, color: Color(0xFFCBD5E1)),
+                  ),
+                ],
+              ),
+            ),
+
+            Transform.translate(
+              offset: const Offset(0, -24),
+              child: _centeredBody(
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: navy.withValues(alpha: 0.10),
+                              blurRadius: 18,
+                              offset: const Offset(0, 6),
                             ),
+                          ],
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: (v) => setState(() => _searchQuery = v),
+                          style: const TextStyle(fontSize: 13, color: navy),
+                          decoration: InputDecoration(
+                            hintText: 'Search events, merch, orgs...',
+                            hintStyle:
+                            const TextStyle(fontSize: 13, color: slateSub),
+                            prefixIcon: const Icon(Icons.search,
+                                size: 20, color: slateSub),
+                            suffixIcon: _searchQuery.isNotEmpty
+                                ? IconButton(
+                              icon: const Icon(Icons.close,
+                                  size: 18, color: slateSub),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _searchQuery = '');
+                              },
+                            )
+                                : null,
+                            border: InputBorder.none,
+                            contentPadding:
+                            const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 7),
-                            decoration: BoxDecoration(
-                              color: gold,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Text(
-                              'View event',
-                              style: TextStyle(
-                                color: navy,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
+                    ),
+                    const SizedBox(width: 10),
+                    InkWell(
+                      onTap: _openFilterSheet,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        height: 48,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        decoration: BoxDecoration(
+                          color: activeFilterCount > 0 ? navy : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: navy.withValues(alpha: 0.10),
+                              blurRadius: 18,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.tune_rounded,
+                              size: 20,
+                              color: activeFilterCount > 0 ? gold : navy,
+                            ),
+                            if (activeFilterCount > 0) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: gold,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '$activeFilterCount',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900,
+                                    color: navy,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            if (activeFilterCount > 0)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _centeredBody(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      if (selectedOrg != 'All')
+                        InputChip(
+                          label: Text(selectedOrg),
+                          labelStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: navy,
+                          ),
+                          backgroundColor: Colors.white,
+                          deleteIconColor: navy,
+                          side: const BorderSide(color: cardBorder),
+                          onDeleted: () => widget.onOrgChanged('All'),
+                        ),
+                      if (_selectedCategory != 'All')
+                        InputChip(
+                          label: Text(_selectedCategory),
+                          labelStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: navy,
+                          ),
+                          backgroundColor: Colors.white,
+                          deleteIconColor: navy,
+                          side: const BorderSide(color: cardBorder),
+                          onDeleted: () =>
+                              setState(() => _selectedCategory = 'All'),
+                        ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
-            ],
 
-            ...filteredPosts.map((post) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: InkWell(
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => EventDetailsScreen(post: post),
-                      ),
-                    );
-                    setState(() {});
-                  },
-                  borderRadius: BorderRadius.circular(18),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: cardBorder),
-                    ),
-                    child: Row(
-                      children: [
-                        OrgLogoAvatar(orgCode: post.orgCode, size: 46),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    post.orgCode,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: slateSub,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      post.category,
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                        color: navy,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                post.title,
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: navy,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                post.fullDate,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: slateSub,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.chevron_right, color: slateSub),
-                      ],
+            _centeredBody(
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    selectedOrg == 'All'
+                        ? 'Happening on campus'
+                        : '$selectedOrg Highlights',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: navy,
                     ),
                   ),
+                  Text(
+                    '${filteredPosts.length}${filteredPosts.length == 1 ? 'post' : 'posts'}',
+                    style: const TextStyle(fontSize: 12, color: slateSub),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            if (filteredPosts.isEmpty)
+              _centeredBody(
+                Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    children: [
+                      Icon(Icons.search_off_rounded,
+                          size: 48, color: slateSub.withValues(alpha: 0.5)),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'No matching posts found',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          color: navy,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Try clearing your search or adjusting your filters.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: slateSub),
+                      ),
+                    ],
+                  ),
                 ),
-              );
-            }),
+              )
+            else
+              PortalResponsiveGrid(
+                spacing: 16,
+                children: filteredPosts.map((post) {
+                  final gradientColors = switch (post.category) {
+                    'Events' => const [Color(0xFF0F2547), Color(0xFF2563EB)],
+                    'Merch' => const [Color(0xFF1E293B), Color(0xFFB45309)],
+                    'Membership Fee' => const [Color(0xFF064E3B), Color(0xFF059669)],
+                    'Educational' => const [Color(0xFF311042), Color(0xFF7C3AED)],
+                    _ => const [Color(0xFF0F2547), Color(0xFF1E3A8A)],
+                  };
+                  final watermarkIcon = _categoryIcon(post.category);
+
+                  return InkWell(
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => EventDetailsScreen(post: post),
+                        ),
+                      );
+                      setState(() {});
+                    },
+                    borderRadius: BorderRadius.circular(22),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: [
+                          BoxShadow(
+                            color: navy.withValues(alpha: 0.08),
+                            blurRadius: 20,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            height: 112,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: gradientColors,
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(22)),
+                            ),
+                            child: Stack(
+                              children: [
+                                Positioned(
+                                  right: -8,
+                                  bottom: -14,
+                                  child: Icon(
+                                    watermarkIcon,
+                                    size: 88,
+                                    color:
+                                    Colors.white.withValues(alpha: 0.12),
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.18),
+                                            borderRadius:
+                                            BorderRadius.circular(20),
+                                          ),
+                                          child: Text(
+                                            '${post.orgCode} •${post.category.toUpperCase()}',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 10,
+                                              letterSpacing: 0.6,
+                                            ),
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: gold,
+                                            borderRadius:
+                                            BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            post.dateBadge,
+                                            style: const TextStyle(
+                                              color: navy,
+                                              fontWeight: FontWeight.w900,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Text(
+                                      post.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 19,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                            child: Row(
+                              children: [
+                                OrgLogoAvatar(orgCode: post.orgCode, size: 36),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        post.location,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: navy,
+                                        ),
+                                      ),
+                                      Text(
+                                        post.timeRange,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: slateSub,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: post.isDone
+                                        ? const Color(0xFFDCFCE7)
+                                        : const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    post.isDone ? 'Done ✓' : 'Details',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: post.isDone
+                                          ? const Color(0xFF166534)
+                                          : navy,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
           ],
         ),
       ),

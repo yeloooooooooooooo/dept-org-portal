@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/campus_post.dart';
+import '../services/portal_repository.dart';
 import '../widgets/org_logo_avatar.dart';
+import '../widgets/portal_background.dart';
 import 'event_details_screen.dart';
 
 class ChecklistScreen extends StatefulWidget {
@@ -11,307 +13,342 @@ class ChecklistScreen extends StatefulWidget {
 }
 
 class _ChecklistScreenState extends State<ChecklistScreen> {
-  bool _showCompleted = false;
+  Widget _centeredBody(Widget child) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  IconData _categoryIcon(String category) {
+    switch (category) {
+      case 'Events':
+        return Icons.celebration_rounded;
+      case 'Merch':
+        return Icons.checkroom_rounded;
+      case 'Membership Fee':
+        return Icons.verified_user_rounded;
+      case 'Educational':
+        return Icons.terminal_rounded;
+      default:
+        return Icons.task_alt_rounded;
+    }
+  }
+
+  Color _categoryColor(String category) {
+    switch (category) {
+      case 'Events':
+        return const Color(0xFF2563EB);
+      case 'Merch':
+        return const Color(0xFFB45309);
+      case 'Membership Fee':
+        return const Color(0xFF059669);
+      case 'Educational':
+        return const Color(0xFF7C3AED);
+      default:
+        return const Color(0xFF0F2547);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     const navy = Color(0xFF0F2547);
     const gold = Color(0xFFD4AF37);
     const slateSub = Color(0xFF64748B);
-    const cardBorder = Color(0xFFE2E8F0);
 
-    final pendingPosts =
-    sampleCampusPosts.where((post) => !post.isDone).toList();
-    final completedPosts =
-    sampleCampusPosts.where((post) => post.isDone).toList();
+    final tasks = sampleCampusPosts
+        .where((p) => p.isPublished && !p.isArchived)
+        .toList();
+    final completedCount = tasks.where((p) => p.isDone).length;
+    final progress = tasks.isEmpty ? 0.0 : completedCount / tasks.length;
 
-    final totalCount = sampleCampusPosts.length;
-    final completedCount = completedPosts.length;
-    final progress = totalCount == 0 ? 0.0 : completedCount / totalCount;
-    final percentInt = (progress * 100).round();
+    const categoryOrder = [
+      'Events',
+      'Merch',
+      'Membership Fee',
+      'Educational',
+    ];
 
-    final visibleList = _showCompleted ? completedPosts : pendingPosts;
+    final groupedTasks = <String, List<CampusPost>>{};
+    for (final cat in categoryOrder) {
+      final items = tasks.where((t) => t.category == cat).toList();
+      if (items.isNotEmpty) {
+        groupedTasks[cat] = items;
+      }
+    }
+    // Include any custom categories if added later
+    for (final task in tasks) {
+      if (!categoryOrder.contains(task.category)) {
+        groupedTasks.putIfAbsent(task.category, () => []).add(task);
+      }
+    }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: SafeArea(
+      body: PortalBackground(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+          padding: const EdgeInsets.only(bottom: 100),
           children: [
-            // Top Badge
-            const Row(
-              children: [
-                Icon(Icons.assignment_turned_in_outlined,
-                    size: 16, color: navy),
-                SizedBox(width: 6),
-                Text(
-                  'My checklist',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: navy,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Editorial Header matching "04 · Personal checklist"
-            const Text(
-              'A little progress,\nevery day.',
-              style: TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.w800,
-                height: 1.15,
-                color: navy,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Keep your campus to-dos in one place.',
-              style: TextStyle(fontSize: 14, color: slateSub),
-            ),
-            const SizedBox(height: 20),
-
-            // Progress Card ("YOU'RE MAKING PROGRESS")
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: cardBorder),
-              ),
+            PortalHeroHeader(
+              bottomPadding: 28,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "YOU'RE MAKING PROGRESS",
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.8,
-                          color: slateSub,
-                        ),
+                  Container(
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: gold.withValues(alpha: 0.45)),
+                    ),
+                    child: const Text(
+                      'STUDENT CLEARANCE & TRACKER',
+                      style: TextStyle(
+                        color: gold,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.9,
                       ),
-                      Text(
-                        '$percentInt%',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: navy,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 8,
-                      backgroundColor: const Color(0xFFE2E8F0),
-                      valueColor: const AlwaysStoppedAnimation<Color>(gold),
                     ),
                   ),
                   const SizedBox(height: 12),
+                  const Text(
+                    'My Campus Tasks',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: -0.4,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   Text(
-                    '$completedCount completed • ${pendingPosts.length} to go',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: navy,
+                    '$completedCount of ${tasks.length} items completed this semester',
+                    style:
+                    const TextStyle(fontSize: 13, color: Color(0xFFCBD5E1)),
+                  ),
+                  const SizedBox(height: 14),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 8,
+                      backgroundColor: Colors.white.withValues(alpha: 0.15),
+                      valueColor: const AlwaysStoppedAnimation<Color>(gold),
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
-
-            // Pending / Completed Toggle Pills
-            Row(
-              children: [
-                Expanded(
-                  child: _TabPill(
-                    label: 'Pending (${pendingPosts.length})',
-                    selected: !_showCompleted,
-                    onTap: () => setState(() => _showCompleted = false),
+            if (tasks.isEmpty)
+              _centeredBody(
+                Padding(
+                  padding: const EdgeInsets.all(36),
+                  child: Column(
+                    children: [
+                      Icon(Icons.task_alt_rounded,
+                          size: 48, color: slateSub.withValues(alpha: 0.5)),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'No active tasks right now',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: navy,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'New events, merch drops, and membership fees will appear here.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: slateSub),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _TabPill(
-                    label: 'Completed (${completedPosts.length})',
-                    selected: _showCompleted,
-                    onTap: () => setState(() => _showCompleted = true),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Section Label
-            Text(
-              _showCompleted ? 'COMPLETED TASKS' : 'UP NEXT',
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.8,
-                color: slateSub,
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            if (visibleList.isEmpty)
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: cardBorder),
-                ),
-                child: Text(
-                  _showCompleted
-                      ? 'No completed items yet. Mark an announcement as done to track it here.'
-                      : 'All caught up! No pending campus tasks.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: slateSub, fontSize: 13),
                 ),
               )
             else
-              ...visibleList.map((post) {
+              ...groupedTasks.entries.map((entry) {
+                final category = entry.key;
+                final items = entry.value;
+                final catDone = items.where((i) => i.isDone).length;
+                final accent = _categoryColor(category);
+
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: InkWell(
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => EventDetailsScreen(post: post),
-                        ),
-                      );
-                      setState(() {});
-                    },
-                    borderRadius: BorderRadius.circular(18),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: cardBorder),
-                      ),
-                      child: Row(
-                        children: [
-                          InkWell(
-                            onTap: () =>
-                                setState(() => post.isDone = !post.isDone),
-                            child: Icon(
-                              post.isDone
-                                  ? Icons.check_circle
-                                  : Icons.radio_button_unchecked,
-                              color: post.isDone
-                                  ? const Color(0xFF16A34A)
-                                  : slateSub,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          OrgLogoAvatar(orgCode: post.orgCode, size: 40),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Category Header Row
+                      _centeredBody(
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
                               children: [
-                                Text(
-                                  '${post.orgCode} • ${post.category.toUpperCase()}',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.5,
-                                    color: slateSub,
+                                Container(
+                                  padding: const EdgeInsets.all(7),
+                                  decoration: BoxDecoration(
+                                    color: accent.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(
+                                    _categoryIcon(category),
+                                    size: 16,
+                                    color: accent,
                                   ),
                                 ),
-                                const SizedBox(height: 3),
+                                const SizedBox(width: 10),
                                 Text(
-                                  post.title,
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
+                                  category,
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
                                     color: navy,
-                                    decoration: post.isDone
-                                        ? TextDecoration.lineThrough
-                                        : null,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  post.fullDate,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: slateSub,
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                          const Icon(Icons.chevron_right, color: slateSub),
-                        ],
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                    color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Text(
+                                '$catDone / ${items.length} done',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: slateSub,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 12),
+
+                      // Equal-Height 2-Column Task Grid per Category
+                      PortalResponsiveGrid(
+                        spacing: 14,
+                        children: items.map((post) {
+                          return Container(
+                            padding: const EdgeInsets.all(15),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: post.isDone
+                                    ? const Color(0xFF86EFAC)
+                                    : Colors.transparent,
+                                width: 1.4,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: navy.withValues(alpha: 0.07),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                InkWell(
+                                  onTap: () async {
+                                    await PortalRepository.instance
+                                        .togglePostDone(post);
+                                    setState(() {});
+                                  },
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      color: post.isDone
+                                          ? const Color(0xFF16A34A)
+                                          : const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(9),
+                                      border: Border.all(
+                                        color: post.isDone
+                                            ? const Color(0xFF16A34A)
+                                            : const Color(0xFFCBD5E1),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: post.isDone
+                                        ? const Icon(Icons.check_rounded,
+                                        size: 18, color: Colors.white)
+                                        : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                OrgLogoAvatar(orgCode: post.orgCode, size: 38),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () async {
+                                      await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              EventDetailsScreen(post: post),
+                                        ),
+                                      );
+                                      setState(() {});
+                                    },
+                                    child: Column(
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                      MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          post.title,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: post.isDone ? slateSub : navy,
+                                            decoration: post.isDone
+                                                ? TextDecoration.lineThrough
+                                                : null,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          '${post.orgCode} • ${post.dateBadge}',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: slateSub,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ),
                 );
               }),
-
-            const SizedBox(height: 8),
-            const Text(
-              'Your checklist tracks progress, not payment verification.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: slateSub),
-            ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TabPill extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _TabPill({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const navy = Color(0xFF0F2547);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: selected ? navy : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? navy : const Color(0xFFE2E8F0),
-          ),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 13,
-            color: selected ? Colors.white : navy,
-          ),
         ),
       ),
     );
