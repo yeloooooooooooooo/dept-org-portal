@@ -47,6 +47,14 @@ class OfficerDashboardScreen extends StatelessWidget {
 
   const OfficerDashboardScreen({super.key, required this.userRole});
 
+  void _confirmSignOut(BuildContext context) {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const navy = Color(0xFF0F2547);
@@ -65,7 +73,7 @@ class OfficerDashboardScreen extends StatelessWidget {
       const _OrgAffiliation(
         code: 'CICS SC',
         name: 'CICS Alangilan - Student Council',
-        role: 'Constituent Member',
+        role: 'Member',
       ),
       if (prog.contains('IT'))
         const _OrgAffiliation(
@@ -105,82 +113,123 @@ class OfficerDashboardScreen extends StatelessWidget {
           children: [
             PortalHeroHeader(
               bottomPadding: 30,
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 68,
-                    height: 68,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.14),
-                      border: Border.all(color: gold, width: 2.2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: gold.withValues(alpha: 0.25),
-                          blurRadius: 18,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 11, vertical: 4.5),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(20),
+                          border:
+                          Border.all(color: gold.withValues(alpha: 0.45)),
                         ),
-                      ],
-                    ),
-                    child: Center(
-                      child: isOfficer
-                          ? OrgLogoAvatar(orgCode: user.orgCode, size: 50)
-                          : const Icon(
-                        Icons.person_rounded,
-                        size: 36,
-                        color: gold,
+                        child: Text(
+                          isOfficer
+                              ? 'OFFICIAL ORGANIZATION ACCOUNT'
+                              : 'CICS STUDENT ACCOUNT',
+                          style: const TextStyle(
+                            color: gold,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.9,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
+                      InkWell(
+                        onTap: () => _confirmSignOut(context),
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 11, vertical: 4),
+                              horizontal: 12, vertical: 7),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(20),
-                            border:
-                            Border.all(color: gold.withValues(alpha: 0.45)),
-                          ),
-                          child: Text(
-                            isOfficer
-                                ? 'OFFICIAL ORGANIZATION ACCOUNT'
-                                : 'CICS STUDENT ACCOUNT',
-                            style: const TextStyle(
-                              color: gold,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.9,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.22),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          isOfficer ? user.orgCode : user.fullName,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            letterSpacing: -0.3,
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.logout_rounded,
+                                  size: 15, color: gold),
+                              SizedBox(width: 6),
+                              Text(
+                                'Sign Out',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          isOfficer
-                              ? orgFullName
-                              : '${user.program} • ${user.yearLevel} • SR Code $formattedId',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            color: Color(0xFFCBD5E1),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.14),
+                          border: Border.all(color: gold, width: 2.2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: gold.withValues(alpha: 0.25),
+                              blurRadius: 18,
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: isOfficer
+                              ? OrgLogoAvatar(orgCode: user.orgCode, size: 46)
+                              : const Icon(
+                            Icons.person_rounded,
+                            size: 34,
+                            color: gold,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isOfficer ? user.orgCode : user.fullName,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              isOfficer
+                                  ? orgFullName
+                                  : '${user.program} • ${user.yearLevel} • SR Code $formattedId',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                color: Color(0xFFCBD5E1),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -190,7 +239,7 @@ class OfficerDashboardScreen extends StatelessWidget {
             PortalResponsiveGrid(
               spacing: 16,
               children: [
-                // Card 1: Credentials (Org Account vs Student Account)
+                // Card 1: Credentials
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -210,17 +259,21 @@ class OfficerDashboardScreen extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            isOfficer
-                                ? 'ORGANIZATION PROFILE'
-                                : 'CAMPUS CREDENTIALS',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.8,
-                              color: slateSub,
+                          Flexible(
+                            child: Text(
+                              isOfficer
+                                  ? 'ORGANIZATION PROFILE'
+                                  : 'CAMPUS CREDENTIALS',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                                color: slateSub,
+                              ),
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 4),
@@ -293,7 +346,7 @@ class OfficerDashboardScreen extends StatelessWidget {
                   ),
                 ),
 
-                // Card 2: Activity & Sign Out
+                // Card 2: Pure Activity Metrics
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -308,7 +361,7 @@ class OfficerDashboardScreen extends StatelessWidget {
                     ],
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Column(
@@ -331,7 +384,7 @@ class OfficerDashboardScreen extends StatelessWidget {
                               Expanded(
                                 child: _StatBox(
                                   label:
-                                  isOfficer ? 'Active Posts' : 'Tasks Done',
+                                  isOfficer ? 'Active Posts' : 'Completed',
                                   value: isOfficer
                                       ? '$orgActivePosts'
                                       : '$completedTasks',
@@ -340,10 +393,10 @@ class OfficerDashboardScreen extends StatelessWidget {
                                       : Icons.check_circle_rounded,
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 10),
                               Expanded(
                                 child: _StatBox(
-                                  label: isOfficer ? 'Archived' : 'Remaining',
+                                  label: isOfficer ? 'Archived' : 'Pending',
                                   value: isOfficer
                                       ? '$orgArchivedPosts'
                                       : '$pendingTasks',
@@ -357,31 +410,29 @@ class OfficerDashboardScreen extends StatelessWidget {
                         ],
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(top: 18),
-                        child: FilledButton.icon(
-                          onPressed: () {
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const LoginScreen()),
-                                  (route) => false,
-                            );
-                          },
-                          style: FilledButton.styleFrom(
-                            backgroundColor: navy,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 15),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                        padding: const EdgeInsets.only(top: 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              isOfficer ? 'Total Announcements' : 'Total Tasks',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: slateSub,
+                              ),
                             ),
-                          ),
-                          icon: const Icon(Icons.logout_rounded,
-                              size: 18, color: gold),
-                          label: const Text(
-                            'Sign Out',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w800, fontSize: 14),
-                          ),
+                            Text(
+                              isOfficer
+                                  ? '${orgActivePosts + orgArchivedPosts} records'
+                                  : '${activePosts.length} items',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: navy,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -417,15 +468,19 @@ class OfficerDashboardScreen extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
-                                'MY ORGANIZATIONS',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.8,
-                                  color: slateSub,
+                              const Flexible(
+                                child: Text(
+                                  'MY ORGANIZATIONS',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.8,
+                                    color: slateSub,
+                                  ),
                                 ),
                               ),
+                              const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 10, vertical: 4),
@@ -456,7 +511,7 @@ class OfficerDashboardScreen extends StatelessWidget {
                               ),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 12),
+                                    horizontal: 12, vertical: 12),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFF8FAFC),
                                   borderRadius: BorderRadius.circular(16),
@@ -465,8 +520,8 @@ class OfficerDashboardScreen extends StatelessWidget {
                                 ),
                                 child: Row(
                                   children: [
-                                    OrgLogoAvatar(orgCode: org.code, size: 40),
-                                    const SizedBox(width: 12),
+                                    OrgLogoAvatar(orgCode: org.code, size: 38),
+                                    const SizedBox(width: 10),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment:
@@ -477,31 +532,38 @@ class OfficerDashboardScreen extends StatelessWidget {
                                               Text(
                                                 org.code,
                                                 style: const TextStyle(
-                                                  fontSize: 14,
+                                                  fontSize: 13.5,
                                                   fontWeight: FontWeight.w900,
                                                   color: navy,
                                                 ),
                                               ),
-                                              const SizedBox(width: 8),
-                                              Container(
-                                                padding:
-                                                const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 2.5),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white,
-                                                  borderRadius:
-                                                  BorderRadius.circular(8),
-                                                  border: Border.all(
-                                                      color: const Color(
-                                                          0xFFCBD5E1)),
-                                                ),
-                                                child: Text(
-                                                  org.role,
-                                                  style: const TextStyle(
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.w800,
-                                                    color: slateSub,
+                                              const SizedBox(width: 6),
+                                              Flexible(
+                                                child: Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 7,
+                                                      vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white,
+                                                    borderRadius:
+                                                    BorderRadius.circular(
+                                                        8),
+                                                    border: Border.all(
+                                                        color: const Color(
+                                                            0xFFCBD5E1)),
+                                                  ),
+                                                  child: Text(
+                                                    org.role,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                    TextOverflow.ellipsis,
+                                                    style: const TextStyle(
+                                                      fontSize: 9.5,
+                                                      fontWeight:
+                                                      FontWeight.w800,
+                                                      color: slateSub,
+                                                    ),
                                                   ),
                                                 ),
                                               ),
@@ -513,7 +575,7 @@ class OfficerDashboardScreen extends StatelessWidget {
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
-                                              fontSize: 12,
+                                              fontSize: 11.5,
                                               fontWeight: FontWeight.w600,
                                               color: slateSub,
                                             ),
@@ -521,7 +583,7 @@ class OfficerDashboardScreen extends StatelessWidget {
                                         ],
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: 6),
                                     const Icon(
                                       Icons.verified_rounded,
                                       size: 18,
@@ -563,7 +625,7 @@ class _StatBox extends StatelessWidget {
     const gold = Color(0xFFD4AF37);
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(16),
@@ -577,9 +639,9 @@ class _StatBox extends StatelessWidget {
               color: navy,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 18, color: gold),
+            child: Icon(icon, size: 16, color: gold),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -594,8 +656,10 @@ class _StatBox extends StatelessWidget {
                 ),
                 Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF64748B),
                   ),
