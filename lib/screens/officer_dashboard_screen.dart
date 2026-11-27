@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/campus_post.dart';
 import '../services/portal_repository.dart';
 import '../widgets/org_logo_avatar.dart';
+import '../widgets/org_member_directory_card.dart'; 
 import '../widgets/portal_background.dart';
 import 'login_screen.dart';
 
@@ -456,7 +457,19 @@ class OfficerDashboardScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-
+                // Officer-Only Student Member Directory
+                if (isOfficer) ...[
+                  const SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 860),
+                        child: OrgMemberDirectoryCard(orgCode: user.orgCode),
+                      ),
+                    ),
+                  ),
+                ],
                 // Student-Only Affiliated Organizations List
                 if (!isOfficer) ...[
                   const SizedBox(height: 20),

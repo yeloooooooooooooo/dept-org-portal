@@ -144,7 +144,7 @@ class _OrgDetailsScreenState extends State<OrgDetailsScreen> {
                                   foregroundColor: navy,
                                   side: const BorderSide(color: cardBorder),
                                   padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                                      const EdgeInsets.symmetric(vertical: 14),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(14),
                                   ),
@@ -162,89 +162,92 @@ class _OrgDetailsScreenState extends State<OrgDetailsScreen> {
                                 onPressed: isSaving
                                     ? null
                                     : () async {
-                                  final newMotto =
-                                  mottoCtrl.text.trim().isNotEmpty
-                                      ? mottoCtrl.text.trim()
-                                      : org.motto;
-                                  final newAbout =
-                                  aboutCtrl.text.trim().isNotEmpty
-                                      ? aboutCtrl.text.trim()
-                                      : org.about;
-                                  final newAdviser =
-                                  adviserCtrl.text.trim().isNotEmpty
-                                      ? adviserCtrl.text.trim()
-                                      : org.adviser;
-                                  final newOffice =
-                                  officeCtrl.text.trim().isNotEmpty
-                                      ? officeCtrl.text.trim()
-                                      : org.officeLocation;
+                                        final newMotto =
+                                            mottoCtrl.text.trim().isNotEmpty
+                                                ? mottoCtrl.text.trim()
+                                                : org.motto;
+                                        final newAbout =
+                                            aboutCtrl.text.trim().isNotEmpty
+                                                ? aboutCtrl.text.trim()
+                                                : org.about;
+                                        final newAdviser =
+                                            adviserCtrl.text.trim().isNotEmpty
+                                                ? adviserCtrl.text.trim()
+                                                : org.adviser;
+                                        final newOffice =
+                                            officeCtrl.text.trim().isNotEmpty
+                                                ? officeCtrl.text.trim()
+                                                : org.officeLocation;
 
-                                  setModalState(() => isSaving = true);
-                                  try {
-                                    await PortalRepository.instance
-                                        .updateOrgProfile(
-                                      orgCode: org.code,
-                                      motto: newMotto,
-                                      about: newAbout,
-                                      adviser: newAdviser,
-                                      officeLocation: newOffice,
-                                    );
+                                        setModalState(() => isSaving = true);
+                                        try {
+                                          await PortalRepository.instance
+                                              .updateOrgProfile(
+                                            orgCode: org.code,
+                                            motto: newMotto,
+                                            about: newAbout,
+                                            adviser: newAdviser,
+                                            officeLocation: newOffice,
+                                            officers: org.officers
+                                                .map((e) => e.toMap())
+                                                .toList(),
+                                          );
 
-                                    org.motto = newMotto;
-                                    org.about = newAbout;
-                                    org.adviser = newAdviser;
-                                    org.officeLocation = newOffice;
+                                          org.motto = newMotto;
+                                          org.about = newAbout;
+                                          org.adviser = newAdviser;
+                                          org.officeLocation = newOffice;
 
-                                    if (!sheetContext.mounted) return;
-                                    Navigator.pop(sheetContext);
+                                          if (!sheetContext.mounted) return;
+                                          Navigator.pop(sheetContext);
 
-                                    if (!mounted) return;
-                                    ScaffoldMessenger.of(this.context)
-                                        .showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                            '${org.code} organization details saved.'),
-                                        backgroundColor: navy,
-                                        behavior:
-                                        SnackBarBehavior.floating,
-                                      ),
-                                    );
-                                  } catch (e) {
-                                    setModalState(() => isSaving = false);
-                                    if (!mounted) return;
-                                    ScaffoldMessenger.of(this.context)
-                                        .showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                            'Failed to save changes: $e'),
-                                        backgroundColor:
-                                        const Color(0xFFDC2626),
-                                        behavior:
-                                        SnackBarBehavior.floating,
-                                      ),
-                                    );
-                                  }
-                                },
+                                          if (!mounted) return;
+                                          ScaffoldMessenger.of(this.context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                  '${org.code} organization details saved.'),
+                                              backgroundColor: navy,
+                                              behavior:
+                                                  SnackBarBehavior.floating,
+                                            ),
+                                          );
+                                        } catch (e) {
+                                          setModalState(() => isSaving = false);
+                                          if (!mounted) return;
+                                          ScaffoldMessenger.of(this.context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                  'Failed to save changes: $e'),
+                                              backgroundColor:
+                                                  const Color(0xFFDC2626),
+                                              behavior:
+                                                  SnackBarBehavior.floating,
+                                            ),
+                                          );
+                                        }
+                                      },
                                 style: FilledButton.styleFrom(
                                   backgroundColor: navy,
                                   foregroundColor: Colors.white,
                                   padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                                      const EdgeInsets.symmetric(vertical: 14),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(14),
                                   ),
                                 ),
                                 icon: isSaving
                                     ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: gold,
-                                  ),
-                                )
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: gold,
+                                        ),
+                                      )
                                     : const Icon(Icons.check_circle_outline,
-                                    size: 18, color: gold),
+                                        size: 18, color: gold),
                                 label: Text(
                                   isSaving ? 'Saving...' : 'Save Changes',
                                   style: const TextStyle(
@@ -263,6 +266,227 @@ class _OrgDetailsScreenState extends State<OrgDetailsScreen> {
           },
         );
       },
+    );
+  }
+
+  Future<void> _showAddOfficerDialog(CicsOrgProfile org) async {
+    final nameCtrl = TextEditingController();
+    final positionCtrl = TextEditingController();
+    String selectedYear = '3rd Year';
+
+    final added = await showDialog<OrgOfficerMember>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text(
+            'Add Executive Officer',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F2547),
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Full Name',
+                  hintText: 'e.g. Maria Clara Santos',
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: positionCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Position',
+                  hintText: 'e.g. President, VP Internal',
+                ),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                initialValue: selectedYear,
+                decoration: const InputDecoration(labelText: 'Year Level'),
+                items: ['1st Year', '2nd Year', '3rd Year', '4th Year']
+                    .map((y) => DropdownMenuItem(value: y, child: Text(y)))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) setDialogState(() => selectedYear = v);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (nameCtrl.text.trim().isEmpty ||
+                    positionCtrl.text.trim().isEmpty) {
+                  return;
+                }
+                Navigator.pop(
+                  dialogContext,
+                  OrgOfficerMember(
+                    name: nameCtrl.text.trim(),
+                    position: positionCtrl.text.trim(),
+                    year: selectedYear,
+                  ),
+                );
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF0F2547),
+              ),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (added == null) return;
+
+    final updatedList = [...org.officers, added];
+    await PortalRepository.instance.updateOrgProfile(
+      orgCode: org.code,
+      motto: org.motto,
+      about: org.about,
+      adviser: org.adviser,
+      officeLocation: org.officeLocation,
+      officers: updatedList.map((e) => e.toMap()).toList(),
+    );
+  }
+
+  Future<void> _removeOfficer(CicsOrgProfile org, int index) async {
+    final updatedList = [...org.officers]..removeAt(index);
+    await PortalRepository.instance.updateOrgProfile(
+      orgCode: org.code,
+      motto: org.motto,
+      about: org.about,
+      adviser: org.adviser,
+      officeLocation: org.officeLocation,
+      officers: updatedList.map((e) => e.toMap()).toList(),
+    );
+  }
+
+  Widget _buildExecutiveBoardCard({
+    required CicsOrgProfile org,
+    required bool canEdit,
+  }) {
+    const navy = Color(0xFF0F2547);
+    const gold = Color(0xFFD4AF37);
+    const slateSub = Color(0xFF64748B);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: navy.withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'EXECUTIVE OFFICERS',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.8,
+                  color: slateSub,
+                ),
+              ),
+              if (canEdit)
+                TextButton.icon(
+                  onPressed: () => _showAddOfficerDialog(org),
+                  style: TextButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  icon: const Icon(
+                    Icons.person_add_alt_1_rounded,
+                    size: 15,
+                    color: navy,
+                  ),
+                  label: const Text(
+                    'Add Officer',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: navy,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (org.officers.isEmpty)
+            const Text(
+              'Officer roster has not been published yet.',
+              style: TextStyle(fontSize: 12.5, color: slateSub),
+            )
+          else
+            ...org.officers.asMap().entries.map((entry) {
+              final idx = entry.key;
+              final member = entry.value;
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  backgroundColor: navy,
+                  child: Text(
+                    member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
+                    style: const TextStyle(
+                      color: gold,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  member.name,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: navy,
+                  ),
+                ),
+                subtitle: Text(
+                  member.year.isNotEmpty
+                      ? '${member.position} • ${member.year}'
+                      : member.position,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: slateSub,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                trailing: canEdit
+                    ? IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 19,
+                          color: Color(0xFFDC2626),
+                        ),
+                        onPressed: () => _removeOfficer(org, idx),
+                      )
+                    : null,
+              );
+            }),
+        ],
+      ),
     );
   }
 
@@ -309,9 +533,9 @@ class _OrgDetailsScreenState extends State<OrgDetailsScreen> {
             final remoteOrgs = orgSnapshot.data ?? const {};
             final org = remoteOrgs.containsKey(widget.orgCode)
                 ? CicsOrgProfile.fromMap(
-              remoteOrgs[widget.orgCode]!,
-              fallback: fallback,
-            )
+                    remoteOrgs[widget.orgCode]!,
+                    fallback: fallback,
+                  )
                 : fallback;
 
             return StreamBuilder<List<CampusPost>>(
@@ -320,18 +544,18 @@ class _OrgDetailsScreenState extends State<OrgDetailsScreen> {
                 final allPosts = snapshot.data ?? const <CampusPost>[];
                 final orgPosts = allPosts
                     .where((p) =>
-                p.orgCode == org.code &&
-                    p.isPublished &&
-                    !p.isArchived)
+                        p.orgCode == org.code &&
+                        p.isPublished &&
+                        !p.isArchived)
                     .toList();
 
                 final filteredPosts = _selectedCategory == 'All'
                     ? orgPosts
                     : orgPosts
-                    .where((p) =>
-                p.category.trim().toLowerCase() ==
-                    _selectedCategory.toLowerCase())
-                    .toList();
+                        .where((p) =>
+                            p.category.trim().toLowerCase() ==
+                            _selectedCategory.toLowerCase())
+                        .toList();
 
                 return ListView(
                   padding: const EdgeInsets.only(bottom: 60),
@@ -389,7 +613,7 @@ class _OrgDetailsScreenState extends State<OrgDetailsScreen> {
                                           color: Colors.white
                                               .withValues(alpha: 0.12),
                                           borderRadius:
-                                          BorderRadius.circular(12),
+                                              BorderRadius.circular(12),
                                           border: Border.all(
                                             color: Colors.white
                                                 .withValues(alpha: 0.18),
@@ -425,7 +649,7 @@ class _OrgDetailsScreenState extends State<OrgDetailsScreen> {
                                             horizontal: 14, vertical: 9),
                                         shape: RoundedRectangleBorder(
                                           borderRadius:
-                                          BorderRadius.circular(12),
+                                              BorderRadius.circular(12),
                                         ),
                                       ),
                                       icon: const Icon(Icons.edit_rounded,
@@ -454,7 +678,7 @@ class _OrgDetailsScreenState extends State<OrgDetailsScreen> {
                                   border: Border.all(color: gold, width: 2),
                                 ),
                                 child:
-                                OrgLogoAvatar(orgCode: org.code, size: 60),
+                                    OrgLogoAvatar(orgCode: org.code, size: 60),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
@@ -591,6 +815,16 @@ class _OrgDetailsScreenState extends State<OrgDetailsScreen> {
                       ],
                     ),
 
+                    const SizedBox(height: 16),
+
+                    // Card 3: Public Executive Officers Roster
+                    _centeredBody(
+                      _buildExecutiveBoardCard(
+                        org: org,
+                        canEdit: canEditThisOrg,
+                      ),
+                    ),
+
                     const SizedBox(height: 24),
 
                     // Section Header + Category Filter Pills
@@ -637,39 +871,39 @@ class _OrgDetailsScreenState extends State<OrgDetailsScreen> {
                                 final count = category == 'All'
                                     ? orgPosts.length
                                     : orgPosts
-                                    .where((p) =>
-                                p.category.trim().toLowerCase() ==
-                                    category.toLowerCase())
-                                    .length;
+                                        .where((p) =>
+                                            p.category.trim().toLowerCase() ==
+                                            category.toLowerCase())
+                                        .length;
 
                                 return Padding(
                                   padding: const EdgeInsets.only(right: 8),
                                   child: InkWell(
                                     onTap: () => setState(
-                                            () => _selectedCategory = category),
+                                        () => _selectedCategory = category),
                                     borderRadius: BorderRadius.circular(12),
                                     child: AnimatedContainer(
                                       duration:
-                                      const Duration(milliseconds: 160),
+                                          const Duration(milliseconds: 160),
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 14, vertical: 8),
                                       decoration: BoxDecoration(
                                         color:
-                                        isSelected ? navy : Colors.white,
+                                            isSelected ? navy : Colors.white,
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
                                           color:
-                                          isSelected ? navy : cardBorder,
+                                              isSelected ? navy : cardBorder,
                                         ),
                                         boxShadow: isSelected
                                             ? [
-                                          BoxShadow(
-                                            color: navy.withValues(
-                                                alpha: 0.16),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 3),
-                                          ),
-                                        ]
+                                                BoxShadow(
+                                                  color: navy.withValues(
+                                                      alpha: 0.16),
+                                                  blurRadius: 8,
+                                                  offset: const Offset(0, 3),
+                                                ),
+                                              ]
                                             : null,
                                       ),
                                       child: Row(
@@ -694,7 +928,7 @@ class _OrgDetailsScreenState extends State<OrgDetailsScreen> {
                                                   ? gold
                                                   : const Color(0xFFF1F5F9),
                                               borderRadius:
-                                              BorderRadius.circular(6),
+                                                  BorderRadius.circular(6),
                                             ),
                                             child: Text(
                                               '$count',
@@ -813,9 +1047,9 @@ class _OrgDetailsScreenState extends State<OrgDetailsScreen> {
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                          CrossAxisAlignment.start,
                                       mainAxisAlignment:
-                                      MainAxisAlignment.center,
+                                          MainAxisAlignment.center,
                                       children: [
                                         Text(
                                           post.title,
@@ -942,7 +1176,7 @@ class _EditField extends StatelessWidget {
             filled: true,
             fillColor: const Color(0xFFF8FAFC),
             contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: Color(0xFFE2E8F0)),

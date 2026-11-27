@@ -281,20 +281,39 @@ class PortalRepository extends ChangeNotifier {
     });
   }
 
-  /// Updates an organization's editable profile fields in Supabase.
+/// Updates an organization's editable profile fields in Supabase.
   Future<void> updateOrgProfile({
     required String orgCode,
     required String motto,
     required String about,
     required String adviser,
     required String officeLocation,
+    List<dynamic>? officers,
   }) async {
     await _client.from('org_profiles').update({
       'motto': motto,
       'about': about,
       'adviser': adviser,
       'office_location': officeLocation,
+      if (officers != null) 'officers': officers,
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('org_code', orgCode);
   }
+
+  /// Fetches registered student members within the officer's organizational scope.
+  /// ACCESS -> BSCS; INTESS -> BSIT; JPCS / CICS SC -> all CICS students.
+  Future<List<UserProfile>> fetchOrgStudentMembers(String orgCode) async {
+    var query = _client.from('profiles').select().eq('role', 'student');
+
+    final code = orgCode.toUpperCase();
+    if (code == 'ACCESS') {
+      query = query.eq('program', 'BSCS');
+    } else if (code == 'INTESS') {
+      query = query.eq('program', 'BSIT');
+    }
+
+    final rows = await query.order('full_name', ascending: true);
+    return rows.map((r) => UserProfile.fromMap(r)).toList();
+  }
+  
 }
