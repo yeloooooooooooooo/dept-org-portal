@@ -75,6 +75,8 @@ class _MainNavShellState extends State<MainNavShell> {
       CampusHomeScreen(
         initialOrg: _homeOrgFilter,
         onOrgChanged: (org) => setState(() => _homeOrgFilter = org),
+        isOfficer: isOfficer,
+        onOpenManageTab: () => setState(() => _selectedIndex = 2),
       ),
       OrganizationsScreen(onSelectOrg: _openOrgInFeed),
       isOfficer ? const OfficerEventsScreen() : const ChecklistScreen(),
@@ -241,11 +243,15 @@ class _NavPillItem extends StatelessWidget {
 class CampusHomeScreen extends StatefulWidget {
   final String initialOrg;
   final ValueChanged<String> onOrgChanged;
+  final bool isOfficer;
+  final VoidCallback? onOpenManageTab;
 
   const CampusHomeScreen({
     super.key,
     required this.initialOrg,
     required this.onOrgChanged,
+    this.isOfficer = false,
+    this.onOpenManageTab,
   });
 
   @override
@@ -466,6 +472,91 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
     );
   }
 
+  Widget _buildAdminCommandBar({
+    required String orgCode,
+    required int liveCount,
+    required int draftCount,
+  }) {
+    const navy = Color(0xFF0F2547);
+    const gold = Color(0xFFD4AF37);
+
+    return _centeredBody(
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: navy.withValues(alpha: 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            OrgLogoAvatar(orgCode: orgCode, size: 38),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$orgCode Overview',
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: navy,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$liveCount live • $draftCount ${draftCount == 1 ? 'draft' : 'drafts'}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: widget.onOpenManageTab,
+              style: FilledButton.styleFrom(
+                backgroundColor: navy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(
+                Icons.edit_note_rounded,
+                size: 18,
+                color: gold,
+              ),
+              label: Text(
+                draftCount > 0
+                    ? '$orgCode Drafts ($draftCount)'
+                    : '$orgCode Drafts',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const navy = Color(0xFF0F2547);
@@ -477,6 +568,7 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
     final user = repo.currentUser;
     final firstName = user.fullName.split(' ').first;
     final selectedOrg = widget.initialOrg;
+    final isOfficer = widget.isOfficer;
 
     final activeFilterCount =
         (selectedOrg != 'All' ? 1 : 0) + (_selectedCategory != 'All' ? 1 : 0);
@@ -491,6 +583,11 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                 .where((p) => p.isPublished && !p.isArchived)
                 .toList();
             final pendingCount = publishedPosts.where((p) => !p.isDone).length;
+
+            final orgPosts =
+            allPosts.where((p) => p.orgCode == user.orgCode && !p.isArchived);
+            final orgLiveCount = orgPosts.where((p) => p.isPublished).length;
+            final orgDraftCount = orgPosts.where((p) => !p.isPublished).length;
 
             final filteredPosts = publishedPosts.where((post) {
               final matchesOrg =
@@ -551,49 +648,100 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                               ),
                             ],
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.10),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: gold.withValues(alpha: 0.4),
+                          if (isOfficer)
+                            Container(
+                              padding: const EdgeInsets.fromLTRB(6, 4, 12, 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.10),
+                                borderRadius: BorderRadius.circular(22),
+                                border: Border.all(
+                                  color: gold.withValues(alpha: 0.55),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  OrgLogoAvatar(
+                                    orgCode: user.orgCode,
+                                    size: 22,
+                                  ),
+                                  const SizedBox(width: 7),
+                                  Text(
+                                    '${user.orgCode} ADMIN',
+                                    style: const TextStyle(
+                                      color: gold,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.10),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: gold.withValues(alpha: 0.4),
+                                ),
+                              ),
+                              child: Text(
+                                pendingCount == 0
+                                    ? 'All caught up! 🎉'
+                                    : '$pendingCount tasks waiting',
+                                style: const TextStyle(
+                                  color: gold,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                             ),
-                            child: Text(
-                              pendingCount == 0
-                                  ? 'All caught up! 🎉'
-                                  : '$pendingCount tasks waiting',
-                              style: const TextStyle(
-                                color: gold,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 18),
-                      Text(
-                        'Hey $firstName! 👋',
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -0.4,
+                      if (isOfficer) ...[
+                        Text(
+                          '${user.orgCode} Portal',
+                          style: const TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: -0.4,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'See what your orgs are building this week.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFFCBD5E1),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Publish announcements, manage drafts, and monitor campus posts.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFFCBD5E1),
+                          ),
                         ),
-                      ),
+                      ] else ...[
+                        Text(
+                          'Hey $firstName! 👋',
+                          style: const TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: -0.4,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'See what your orgs are building this week.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFFCBD5E1),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -708,6 +856,15 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                     ),
                   ),
                 ),
+
+                if (isOfficer) ...[
+                  _buildAdminCommandBar(
+                    orgCode: user.orgCode,
+                    liveCount: orgLiveCount,
+                    draftCount: orgDraftCount,
+                  ),
+                  const SizedBox(height: 18),
+                ],
 
                 if (activeFilterCount > 0)
                   Padding(
@@ -833,65 +990,58 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                         ],
                         _ => const [Color(0xFF0F2547), Color(0xFF1E3A8A)],
                       };
-                      final watermarkIcon = _categoryIcon(post.category);
 
                       return InkWell(
-                        onTap: () async {
-                          await Navigator.push(
+                        onTap: () {
+                          Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => EventDetailsScreen(post: post),
                             ),
                           );
-                          setState(() {});
                         },
-                        borderRadius: BorderRadius.circular(22),
+                        borderRadius: BorderRadius.circular(20),
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(22),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: cardBorder),
                             boxShadow: [
                               BoxShadow(
-                                color: navy.withValues(alpha: 0.08),
-                                blurRadius: 20,
+                                color: navy.withValues(alpha: 0.06),
+                                blurRadius: 16,
                                 offset: const Offset(0, 6),
                               ),
                             ],
                           ),
+                          clipBehavior: Clip.antiAlias,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Container(
-                                height: 112,
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(14),
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: gradientColors,
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(22),
-                                  ),
                                 ),
                                 child: Stack(
                                   children: [
                                     Positioned(
-                                      right: -8,
-                                      bottom: -14,
+                                      right: 6,
+                                      bottom: -8,
                                       child: Icon(
-                                        watermarkIcon,
-                                        size: 88,
-                                        color: Colors.white.withValues(
-                                          alpha: 0.14,
-                                        ),
+                                        _categoryIcon(post.category),
+                                        size: 62,
+                                        color:
+                                        Colors.white.withValues(alpha: 0.14),
                                       ),
                                     ),
                                     Column(
                                       crossAxisAlignment:
                                       CrossAxisAlignment.start,
-                                      mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
                                       children: [
                                         Row(
                                           mainAxisAlignment:
@@ -904,9 +1054,8 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                                 vertical: 4,
                                               ),
                                               decoration: BoxDecoration(
-                                                color: Colors.white.withValues(
-                                                  alpha: 0.18,
-                                                ),
+                                                color: Colors.white
+                                                    .withValues(alpha: 0.18),
                                                 borderRadius:
                                                 BorderRadius.circular(8),
                                               ),
@@ -916,14 +1065,14 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                                   color: Colors.white,
                                                   fontSize: 10,
                                                   fontWeight: FontWeight.w800,
-                                                  letterSpacing: 0.6,
+                                                  letterSpacing: 0.5,
                                                 ),
                                               ),
                                             ),
                                             Container(
                                               padding:
                                               const EdgeInsets.symmetric(
-                                                horizontal: 10,
+                                                horizontal: 9,
                                                 vertical: 4,
                                               ),
                                               decoration: BoxDecoration(
@@ -935,28 +1084,27 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                                 post.dateBadge,
                                                 style: const TextStyle(
                                                   color: navy,
-                                                  fontSize: 11,
+                                                  fontSize: 10.5,
                                                   fontWeight: FontWeight.w900,
                                                 ),
                                               ),
                                             ),
                                           ],
                                         ),
+                                        const SizedBox(height: 16),
                                         Row(
                                           children: [
                                             OrgLogoAvatar(
                                               orgCode: post.orgCode,
-                                              size: 30,
+                                              size: 28,
                                             ),
                                             const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                post.orgCode,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w800,
-                                                  fontSize: 13,
-                                                ),
+                                            Text(
+                                              post.orgCode,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 12.5,
                                               ),
                                             ),
                                           ],
@@ -967,22 +1115,21 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(15),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       post.title,
-                                      maxLines: 2,
+                                      maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
-                                        fontSize: 16,
+                                        fontSize: 15.5,
                                         fontWeight: FontWeight.w800,
                                         color: navy,
-                                        height: 1.25,
                                       ),
                                     ),
-                                    const SizedBox(height: 6),
+                                    const SizedBox(height: 4),
                                     Text(
                                       post.description,
                                       maxLines: 2,
@@ -999,9 +1146,9 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                         const Icon(
                                           Icons.location_on_rounded,
                                           size: 14,
-                                          color: slateSub,
+                                          color: navy,
                                         ),
-                                        const SizedBox(width: 4),
+                                        const SizedBox(width: 5),
                                         Expanded(
                                           child: Text(
                                             post.location,

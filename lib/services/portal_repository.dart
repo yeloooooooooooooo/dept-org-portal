@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/campus_post.dart';
+
+typedef OrgProfileMap = Map<String, Map<String, dynamic>>;
 
 class UserProfile {
   final String id;
@@ -172,5 +175,39 @@ class PortalRepository extends ChangeNotifier {
   /// Deletes a post by ID from Supabase.
   Future<void> deletePost(String postId) async {
     await _client.from('campus_posts').delete().eq('id', postId);
+  }
+
+  /// Real-time stream of organization profiles keyed by orgCode.
+  Stream<OrgProfileMap> watchOrgProfiles() {
+    return _client
+        .from('org_profiles')
+        .stream(primaryKey: ['org_code'])
+        .map((rows) {
+      final OrgProfileMap result = {};
+      for (final row in rows) {
+        final code = row['org_code']?.toString() ?? '';
+        if (code.isNotEmpty) {
+          result[code] = row;
+        }
+      }
+      return result;
+    });
+  }
+
+  /// Updates an organization's editable profile fields in Supabase.
+  Future<void> updateOrgProfile({
+    required String orgCode,
+    required String motto,
+    required String about,
+    required String adviser,
+    required String officeLocation,
+  }) async {
+    await _client.from('org_profiles').update({
+      'motto': motto,
+      'about': about,
+      'adviser': adviser,
+      'office_location': officeLocation,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('org_code', orgCode);
   }
 }

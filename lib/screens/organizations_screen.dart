@@ -24,6 +24,32 @@ class CicsOrgProfile {
     required this.officeLocation,
   });
 
+  factory CicsOrgProfile.fromMap(
+      Map<String, dynamic> map, {
+        CicsOrgProfile? fallback,
+      }) {
+    final code = map['org_code']?.toString() ?? fallback?.code ?? '';
+    return CicsOrgProfile(
+      code: code,
+      fullName: map['full_name']?.toString() ?? fallback?.fullName ?? code,
+      focus: map['focus']?.toString() ??
+          fallback?.focus ??
+          'CICS Student Organization',
+      motto: map['motto']?.toString() ??
+          fallback?.motto ??
+          'Excellence in Computing and Service',
+      about: map['about']?.toString() ??
+          fallback?.about ??
+          'Accredited student organization at BatStateU Alangilan.',
+      adviser: map['adviser']?.toString() ??
+          fallback?.adviser ??
+          'CICS Faculty Adviser',
+      officeLocation: map['office_location']?.toString() ??
+          fallback?.officeLocation ??
+          'CICS Building, Alangilan Campus',
+    );
+  }
+
   String get officialEmail {
     final slug = code.toLowerCase().replaceAll(' ', '');
     return '$slug.alangilan@g.batstate-u.edu.ph';
@@ -93,257 +119,275 @@ class _OrganizationsScreenState extends State<OrganizationsScreen> {
 
     final repo = PortalRepository.instance;
     final currentUser = repo.currentUser;
-    final isOfficerAccount = currentUser.role == 'officer' ||
-        currentUser.email
-            .toLowerCase()
-            .contains('alangilan@g.batstate-u.edu.ph') ||
-        currentUser.fullName.toLowerCase().contains('officer');
+    final isOfficerAccount = currentUser.role == 'officer';
 
     return Scaffold(
       body: PortalBackground(
-        child: StreamBuilder<List<CampusPost>>(
-          stream: repo.watchPosts(),
-          builder: (context, snapshot) {
-            final allPosts = snapshot.data ?? const <CampusPost>[];
-            final activePosts = allPosts
-                .where((p) => p.isPublished && !p.isArchived)
-                .toList();
+        child: StreamBuilder<OrgProfileMap>(
+        stream: repo.watchOrgProfiles(),
+        builder: (context, orgSnapshot) {
+          final remoteOrgs = orgSnapshot.data ?? const {};
 
-            return ListView(
-              padding: const EdgeInsets.only(bottom: 100),
-              children: [
-                PortalHeroHeader(
-                  bottomPadding: 30,
-                  child: Center(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(20),
-                            border:
-                            Border.all(color: gold.withValues(alpha: 0.45)),
-                          ),
-                          child: const Text(
-                            'BATSTATEU ALANGILAN • CICS',
-                            style: TextStyle(
-                              color: gold,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.9,
+          return StreamBuilder<List<CampusPost>>(
+            stream: repo.watchPosts(),
+            builder: (context, postSnapshot) {
+              final allPosts = postSnapshot.data ?? const <CampusPost>[];
+              final activePosts = allPosts
+                  .where((p) => p.isPublished && !p.isArchived)
+                  .toList();
+
+              return ListView(
+                padding: const EdgeInsets.only(bottom: 100),
+                children: [
+                  PortalHeroHeader(
+                    bottomPadding: 30,
+                    child: Center(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                  color: gold.withValues(alpha: 0.45)),
+                            ),
+                            child: const Text(
+                              'BATSTATEU ALANGILAN • CICS',
+                              style: TextStyle(
+                                color: gold,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.9,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Student Organizations',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            letterSpacing: -0.4,
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Student Organizations',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: -0.4,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Explore accredited CICS student organizations and council hubs.',
-                          textAlign: TextAlign.center,
-                          style:
-                          TextStyle(fontSize: 13, color: Color(0xFFCBD5E1)),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Explore accredited CICS student organizations and council hubs.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                fontSize: 13, color: Color(0xFFCBD5E1)),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                PortalResponsiveGrid(
-                  spacing: 16,
-                  children: _orgOrder.map((code) {
-                    final org = cicsOrgProfiles[code]!;
-                    final isOwnOrg =
-                        isOfficerAccount && currentUser.orgCode == org.code;
-                    final postCount = activePosts
-                        .where((p) => p.orgCode == org.code)
-                        .length;
+                  const SizedBox(height: 20),
+                  PortalResponsiveGrid(
+                    spacing: 16,
+                    children: _orgOrder.map((code) {
+                      final fallback = cicsOrgProfiles[code]!;
+                      final org = remoteOrgs.containsKey(code)
+                          ? CicsOrgProfile.fromMap(
+                        remoteOrgs[code]!,
+                        fallback: fallback,
+                      )
+                          : fallback;
 
-                    return InkWell(
-                      onTap: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => OrgDetailsScreen(
-                              orgCode: org.code,
-                              onViewFeed: () => widget.onSelectOrg(org.code),
+                      final isOwnOrg =
+                          isOfficerAccount && currentUser.orgCode == org.code;
+                      final postCount = activePosts
+                          .where((p) => p.orgCode == org.code)
+                          .length;
+
+                      return InkWell(
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => OrgDetailsScreen(
+                                orgCode: org.code,
+                                onViewFeed: () =>
+                                    widget.onSelectOrg(org.code),
+                              ),
                             ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(24),
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: isOwnOrg
+                                  ? gold.withValues(alpha: 0.75)
+                                  : Colors.transparent,
+                              width: 1.6,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: navy.withValues(alpha: 0.08),
+                                blurRadius: 20,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
                           ),
-                        );
-                        setState(() {});
-                      },
-                      borderRadius: BorderRadius.circular(24),
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: isOwnOrg
-                                ? gold.withValues(alpha: 0.75)
-                                : Colors.transparent,
-                            width: 1.6,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: navy.withValues(alpha: 0.08),
-                              blurRadius: 20,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    OrgLogoAvatar(orgCode: org.code, size: 50),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Text(
-                                                org.code,
-                                                style: const TextStyle(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.w900,
-                                                  color: navy,
-                                                ),
-                                              ),
-                                              if (isOwnOrg) ...[
-                                                const SizedBox(width: 8),
-                                                Container(
-                                                  padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 2.5),
-                                                  decoration: BoxDecoration(
-                                                    color: navy,
-                                                    borderRadius:
-                                                    BorderRadius.circular(
-                                                        8),
-                                                  ),
-                                                  child: const Text(
-                                                    'Your Org',
-                                                    style: TextStyle(
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.w800,
-                                                      color: gold,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ],
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            org.focus,
-                                            style: const TextStyle(
-                                              fontSize: 11.5,
-                                              fontWeight: FontWeight.w700,
-                                              color: slateSub,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 14),
-                                Text(
-                                  org.fullName,
-                                  style: const TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: navy,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '"${org.motto}"',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontStyle: FontStyle.italic,
-                                    color: slateSub,
-                                    height: 1.35,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(top: 16),
-                              child: Row(
-                                mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 5),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      snapshot.connectionState ==
-                                          ConnectionState.waiting &&
-                                          !snapshot.hasData
-                                          ? 'Loading posts...'
-                                          : '$postCount active ${postCount == 1 ? 'post' : 'posts'}',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w800,
-                                        color: navy,
-                                      ),
-                                    ),
-                                  ),
                                   Row(
                                     children: [
-                                      Text(
-                                        isOwnOrg ? 'Manage & View' : 'View Org',
+                                      OrgLogoAvatar(
+                                          orgCode: org.code, size: 50),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Text(
+                                                  org.code,
+                                                  style: const TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight:
+                                                    FontWeight.w900,
+                                                    color: navy,
+                                                  ),
+                                                ),
+                                                if (isOwnOrg) ...[
+                                                  const SizedBox(width: 8),
+                                                  Container(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 2.5),
+                                                    decoration: BoxDecoration(
+                                                      color: navy,
+                                                      borderRadius:
+                                                      BorderRadius
+                                                          .circular(8),
+                                                    ),
+                                                    child: const Text(
+                                                      'Your Org',
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                        FontWeight.w800,
+                                                        color: gold,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              org.focus,
+                                              style: const TextStyle(
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: slateSub,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    org.fullName,
+                                    style: const TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: navy,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '"${org.motto}"',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontStyle: FontStyle.italic,
+                                      color: slateSub,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 16),
+                                child: Row(
+                                  mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF1F5F9),
+                                        borderRadius:
+                                        BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        postSnapshot.connectionState ==
+                                            ConnectionState.waiting &&
+                                            !postSnapshot.hasData
+                                            ? 'Loading posts...'
+                                            : '$postCount active ${postCount == 1 ? 'post' : 'posts'}',
                                         style: const TextStyle(
-                                          fontSize: 12,
+                                          fontSize: 11,
                                           fontWeight: FontWeight.w800,
                                           color: navy,
                                         ),
                                       ),
-                                      const SizedBox(width: 4),
-                                      const Icon(Icons.arrow_forward_rounded,
-                                          size: 16, color: navy),
-                                    ],
-                                  ),
-                                ],
+                                    ),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          isOwnOrg
+                                              ? 'Manage & View'
+                                              : 'View Org',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                            color: navy,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Icon(
+                                            Icons.arrow_forward_rounded,
+                                            size: 16,
+                                            color: navy),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            );
-          },
+                      );
+                    }).toList(),
+                  ),
+                ],
+              );
+            },
+          );
+        },
         ),
       ),
     );
