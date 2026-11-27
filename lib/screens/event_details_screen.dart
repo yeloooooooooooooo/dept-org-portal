@@ -454,6 +454,55 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                       ),
                       if (isOwnOrgOfficer && !isDraft) ...[
                         const SizedBox(height: 14),
+                          FutureBuilder<TaskCountMap>(
+                          future: repo.fetchOrgTaskCompletionCounts(post.orgCode),
+                          builder: (context, countSnap) {
+                            final completed = countSnap.data?[post.id] ?? 0;
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 13,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: cardBorder),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.task_alt_rounded,
+                                    size: 19,
+                                    color: Color(0xFF16A34A),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  const Expanded(
+                                    child: Text(
+                                      'Students Marked Done',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: navy,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    countSnap.connectionState ==
+                                            ConnectionState.waiting
+                                        ? '...'
+                                        : '$completed ${completed == 1 ? 'student' : 'students'}',
+                                    style: const TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w900,
+                                      color: navy,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
                         OutlinedButton.icon(
                           onPressed: () async {
                             final wasArchived = post.isArchived;

@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/campus_post.dart';
 
 typedef OrgProfileMap = Map<String, Map<String, dynamic>>;
+typedef TaskCountMap = Map<String, int>;
 
 class UserProfile {
   final String id;
@@ -314,6 +315,28 @@ class PortalRepository extends ChangeNotifier {
 
     final rows = await query.order('full_name', ascending: true);
     return rows.map((r) => UserProfile.fromMap(r)).toList();
+  }
+
+  /// Fetches aggregated student task completion counts keyed by post ID (officers only).
+Future<TaskCountMap> fetchOrgTaskCompletionCounts(String orgCode) async {
+    final rows = await _client.rpc(
+      'get_org_task_completion_counts',
+      params: {'p_org_code': orgCode},
+    );
+
+    final Map<String, int> counts = {};
+    if (rows is List) {
+      for (final row in rows) {
+        if (row is Map) {
+          final id = row['post_id']?.toString() ?? '';
+          final count = (row['completed_count'] as num?)?.toInt() ?? 0;
+          if (id.isNotEmpty) {
+            counts[id] = count;
+          }
+        }
+      }
+    }
+    return counts;
   }
   
 }
