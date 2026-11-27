@@ -39,7 +39,17 @@ class CampusPost {
     this.isArchived = false,
   });
 
-  // Converts model into a Firestore-ready Map
+  static bool _parseBool(dynamic value, {required bool fallback}) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final lower = value.trim().toLowerCase();
+      if (lower == 'true' || lower == '1') return true;
+      if (lower == 'false' || lower == '0') return false;
+    }
+    return fallback;
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'orgCode': orgCode,
@@ -57,10 +67,10 @@ class CampusPost {
       'formUrl': formUrl,
       'publishedDateLabel': publishedDateLabel,
       'isPublished': isPublished,
+      'isArchived': isArchived,
     };
   }
 
-  // Rebuilds model from a Firestore document snapshot
   factory CampusPost.fromMap(
       String id,
       Map<String, dynamic> map, {
@@ -68,28 +78,41 @@ class CampusPost {
       }) {
     return CampusPost(
       id: id,
-      orgCode: (map['orgCode'] ?? 'JPCS').toString(),
-      orgFullName: (map['orgFullName'] ?? '').toString(),
+      orgCode: (map['orgCode'] ?? map['org_code'] ?? 'JPCS').toString().trim(),
+      orgFullName:
+      (map['orgFullName'] ?? map['org_full_name'] ?? '').toString(),
       title: (map['title'] ?? '').toString(),
       category: (map['category'] ?? 'Events').toString(),
-      dateBadge: (map['dateBadge'] ?? '04 DEC').toString(),
-      fullDate: (map['fullDate'] ?? '').toString(),
-      timeRange: (map['timeRange'] ?? '').toString(),
+      dateBadge: (map['dateBadge'] ?? map['date_badge'] ?? '04 DEC').toString(),
+      fullDate: (map['fullDate'] ?? map['full_date'] ?? '').toString(),
+      timeRange: (map['timeRange'] ?? map['time_range'] ?? '').toString(),
       location: (map['location'] ?? '').toString(),
       description: (map['description'] ?? '').toString(),
-      pointPersonName: (map['pointPersonName'] ?? '').toString(),
-      pointPersonRole: (map['pointPersonRole'] ?? '').toString(),
-      pointPersonEmail: (map['pointPersonEmail'] ?? '').toString(),
-      formUrl: (map['formUrl'] ?? 'https://forms.gle/example').toString(),
-      publishedDateLabel: (map['publishedDateLabel'] ?? 'NOV 27').toString(),
-      isPublished: (map['isPublished'] as bool?) ?? true,
+      pointPersonName:
+      (map['pointPersonName'] ?? map['point_person_name'] ?? '').toString(),
+      pointPersonRole:
+      (map['point_person_role'] ?? map['pointPersonRole'] ?? '').toString(),
+      pointPersonEmail:
+      (map['point_person_email'] ?? map['pointPersonEmail'] ?? '').toString(),
+      formUrl: (map['formUrl'] ?? map['form_url'] ?? 'https://forms.gle/example')
+          .toString(),
+      publishedDateLabel: (map['publishedDateLabel'] ??
+          map['published_date_label'] ??
+          'NOV 27')
+          .toString(),
       isDone: completedIds.contains(id),
-      isArchived: (map['isArchived'] as bool?) ?? false,
+      isPublished: _parseBool(
+        map['isPublished'] ?? map['is_published'],
+        fallback: true,
+      ),
+      isArchived: _parseBool(
+        map['isArchived'] ?? map['is_archived'],
+        fallback: false,
+      ),
     );
   }
 }
 
-// Temporary local fallback data (kept empty-safe for backend swap)
 final List<CampusPost> sampleCampusPosts = [
   CampusPost(
     id: 'post_1',

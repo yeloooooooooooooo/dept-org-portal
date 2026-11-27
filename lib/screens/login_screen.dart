@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String _selectedProgram = 'BSIT';
   String _selectedYear = '3rd Year';
   bool _obscurePassword = true;
+  String? _errorMessage;
 
   final _nameCtrl = TextEditingController();
   final _studentIdCtrl = TextEditingController();
@@ -32,12 +33,58 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  String _mapAuthError(AuthException e) {
+    final msg = e.message.toLowerCase();
+    if (msg.contains('invalid login credentials') ||
+        msg.contains('invalid credentials')) {
+      return 'Incorrect email or password. Please double-check both and try again.';
+    }
+    if (msg.contains('email not confirmed')) {
+      return 'Your email address is not verified yet. Check your inbox for the confirmation link.';
+    }
+    if (msg.contains('user already registered') ||
+        msg.contains('already exists')) {
+      return 'An account with this email already exists. Switch to Sign in instead.';
+    }
+    if (msg.contains('password should be at least') ||
+        msg.contains('weak password')) {
+      return 'Password must be at least 6 characters long.';
+    }
+    if (msg.contains('unable to validate email') ||
+        msg.contains('invalid email')) {
+      return 'Please enter a valid email address.';
+    }
+    if (msg.contains('too many requests') || msg.contains('rate limit')) {
+      return 'Too many attempts. Please wait a minute and try again.';
+    }
+    return e.message;
+  }
+
   Future<void> _submitAuth() async {
+    setState(() => _errorMessage = null);
+
     final email = _emailCtrl.text.trim().toLowerCase();
     final password = _passwordCtrl.text;
 
-    if (email.isEmpty || password.isEmpty) {
-      _showSnackBar('Please enter your email and password.', isError: true);
+    if (email.isEmpty && password.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your email and password.');
+      return;
+    }
+    if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
+      setState(
+            () => _errorMessage =
+        'Please enter a valid email address (e.g., @g.batstate-u.edu.ph).',
+      );
+      return;
+    }
+    if (password.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your password.');
+      return;
+    }
+    if (_isSignUp && password.length < 6) {
+      setState(
+            () => _errorMessage = 'Password must be at least 6 characters long.',
+      );
       return;
     }
 
@@ -90,27 +137,19 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } on AuthException catch (e) {
       if (!mounted) return;
-      _showSnackBar(e.message, isError: true);
+      setState(() => _errorMessage = _mapAuthError(e));
     } on PostgrestException catch (e) {
       if (!mounted) return;
-      _showSnackBar('Profile record error: ${e.message}', isError: true);
+      setState(() => _errorMessage = 'Profile record error: ${e.message}');
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Unable to sign in: $e', isError: true);
+      setState(
+            () => _errorMessage =
+        'Unable to sign in. Check your connection and try again.',
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  void _showSnackBar(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor:
-        isError ? const Color(0xFFB91C1C) : const Color(0xFF0F2547),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   @override
@@ -331,7 +370,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     'JPCS',
                                     'ACCESS',
                                     'INTESS',
-                                    'CICS SC'
+                                    'CICS SC',
                                   ]
                                       .map(
                                         (org) => Container(
@@ -473,7 +512,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           '1st Year',
                                           '2nd Year',
                                           '3rd Year',
-                                          '4th Year'
+                                          '4th Year',
                                         ]
                                             .map((y) => DropdownMenuItem(
                                             value: y, child: Text(y)))
@@ -494,11 +533,21 @@ class _LoginScreenState extends State<LoginScreen> {
                                 label: 'University or Org Email',
                                 hint: '12-34567@g.batstate-u.edu.ph',
                                 icon: Icons.alternate_email_rounded,
+                                onChanged: (_) {
+                                  if (_errorMessage != null) {
+                                    setState(() => _errorMessage = null);
+                                  }
+                                },
                               ),
                               const SizedBox(height: 12),
                               TextField(
                                 controller: _passwordCtrl,
                                 obscureText: _obscurePassword,
+                                onChanged: (_) {
+                                  if (_errorMessage != null) {
+                                    setState(() => _errorMessage = null);
+                                  }
+                                },
                                 onSubmitted: (_) =>
                                 _isLoading ? null : _submitAuth(),
                                 decoration: InputDecoration(
@@ -532,7 +581,46 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 22),
+                              if (_errorMessage != null) ...[
+                                const SizedBox(height: 14),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 11),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFEF2F2),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                        color: const Color(0xFFFECACA)),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                    children: [
+                                      const Padding(
+                                        padding: EdgeInsets.only(top: 1),
+                                        child: Icon(
+                                          Icons.error_outline_rounded,
+                                          size: 18,
+                                          color: Color(0xFFDC2626),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          _errorMessage!,
+                                          style: const TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF991B1B),
+                                            height: 1.35,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 20),
                               FilledButton(
                                 onPressed: _isLoading ? null : _submitAuth,
                                 style: FilledButton.styleFrom(
@@ -586,8 +674,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                         fontSize: 13, color: slateSub),
                                   ),
                                   TextButton(
-                                    onPressed: () =>
-                                        setState(() => _isSignUp = !_isSignUp),
+                                    onPressed: () => setState(() {
+                                      _isSignUp = !_isSignUp;
+                                      _errorMessage = null;
+                                    }),
                                     child: Text(
                                       _isSignUp ? 'Sign in' : 'Sign up',
                                       style: const TextStyle(
@@ -607,8 +697,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 Center(
                   child: Container(
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.75),
                       borderRadius: BorderRadius.circular(20),
@@ -645,12 +735,14 @@ class _InputField extends StatelessWidget {
   final String label;
   final String hint;
   final IconData icon;
+  final ValueChanged<String>? onChanged;
 
   const _InputField({
     required this.controller,
     required this.label,
     required this.hint,
     required this.icon,
+    this.onChanged,
   });
 
   @override
@@ -660,6 +752,7 @@ class _InputField extends StatelessWidget {
 
     return TextField(
       controller: controller,
+      onChanged: onChanged,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,

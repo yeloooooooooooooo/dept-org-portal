@@ -216,13 +216,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         backgroundColor: _navy,
         foregroundColor: Colors.white,
         elevation: 0,
+        toolbarHeight: 68,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               isEditing ? 'Edit Organization Post' : 'Create Organization Post',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
+            const SizedBox(height: 2),
             Text(
               'Broadcasting to CICS Student Discover Feed',
               style: TextStyle(
@@ -233,21 +236,27 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           ],
         ),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16, top: 10, bottom: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: _gold,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              orgCode,
-              style: const TextStyle(
-                color: _navy,
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
-                letterSpacing: 0.5,
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: _gold,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  orgCode,
+                  style: const TextStyle(
+                    color: _navy,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                  ),
+                ),
               ),
             ),
           ),
@@ -257,7 +266,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         builder: (context, constraints) {
           final isWide = constraints.maxWidth >= 940;
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1180),
@@ -271,6 +280,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   ],
                 )
                     : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _buildFormCard(),
                     const SizedBox(height: 24),
@@ -306,7 +316,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _sectionHeader(Icons.campaign_rounded, 'Announcement Details'),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             _fieldLabel('Post Title'),
             TextFormField(
               controller: _titleController,
@@ -366,8 +376,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               child: Divider(height: 1),
             ),
             _sectionHeader(Icons.schedule_rounded, 'Schedule & Venue'),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   flex: 2,
@@ -382,7 +393,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
                   flex: 3,
                   child: Column(
@@ -398,8 +409,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Column(
@@ -413,7 +425,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -433,8 +445,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               child: Divider(height: 1),
             ),
             _sectionHeader(Icons.contact_mail_rounded, 'Point Person & Link'),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Column(
@@ -448,7 +461,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -463,8 +476,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Column(
@@ -478,7 +492,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,28 +512,31 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               child: Divider(height: 1),
             ),
             _fieldLabel('Visibility Status'),
-            Row(
-              children: [
-                Expanded(
-                  child: _visibilityOption(
-                    selected: _isPublished,
-                    title: 'Publish Immediately',
-                    subtitle: 'Visible to all CICS students now',
-                    icon: Icons.public_rounded,
-                    onTap: () => setState(() => _isPublished = true),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _visibilityOption(
+                      selected: _isPublished,
+                      title: 'Publish Immediately',
+                      subtitle: 'Visible to all CICS students now',
+                      icon: Icons.public_rounded,
+                      onTap: () => setState(() => _isPublished = true),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _visibilityOption(
-                    selected: !_isPublished,
-                    title: 'Save as Draft',
-                    subtitle: 'Only visible to org officers',
-                    icon: Icons.edit_note_rounded,
-                    onTap: () => setState(() => _isPublished = false),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _visibilityOption(
+                      selected: !_isPublished,
+                      title: 'Save as Draft',
+                      subtitle: 'Only visible to org officers',
+                      icon: Icons.edit_note_rounded,
+                      onTap: () => setState(() => _isPublished = false),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -583,192 +600,207 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         ? '04 DEC'
         : _dateBadgeController.text.trim().toUpperCase();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.visibility_rounded, size: 18, color: _navy),
-            const SizedBox(width: 8),
-            const Text(
-              'LIVE STUDENT CARD PREVIEW',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.8,
-                color: _navy,
-              ),
-            ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: _isPublished
-                    ? const Color(0xFFDCFCE7)
-                    : const Color(0xFFFEF3C7),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                _isPublished ? 'LIVE FEED' : 'DRAFT ONLY',
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Icon(Icons.visibility_rounded, size: 18, color: _navy),
+              const SizedBox(width: 8),
+              const Text(
+                'LIVE STUDENT CARD PREVIEW',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
-                  color: _isPublished
-                      ? const Color(0xFF166534)
-                      : const Color(0xFF92400E),
+                  letterSpacing: 0.8,
+                  color: _navy,
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: _navy.withValues(alpha: 0.08),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+              const Spacer(),
               Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [_navy, _navyLight],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: _isPublished
+                      ? const Color(0xFFDCFCE7)
+                      : const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _isPublished ? 'LIVE FEED' : 'DRAFT ONLY',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: _isPublished
+                        ? const Color(0xFF166534)
+                        : const Color(0xFF92400E),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    OrgLogoAvatar(orgCode: orgCode, size: 40),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            orgCode,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 14,
-                            ),
-                          ),
-                          Text(
-                            _orgNames[orgCode] ?? 'CICS Organization',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.8),
-                              fontSize: 11.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _gold,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        dateBadge,
-                        style: const TextStyle(
-                          color: _navy,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: badgeColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        _selectedCategory.toUpperCase(),
-                        style: TextStyle(
-                          color: badgeColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: _navy,
-                        height: 1.25,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      desc,
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        color: Color(0xFF475569),
-                        height: 1.45,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _previewMetaRow(
-                      Icons.calendar_today_rounded,
-                      '${_fullDateController.text} • ${_timeRangeController.text}',
-                    ),
-                    const SizedBox(height: 6),
-                    _previewMetaRow(
-                      Icons.location_on_rounded,
-                      _locationController.text,
-                    ),
-                    const SizedBox(height: 6),
-                    _previewMetaRow(
-                      Icons.person_rounded,
-                      '${_pointPersonNameController.text} (${_pointPersonRoleController.text})',
-                    ),
-                  ],
-                ),
               ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: [
+                BoxShadow(
+                  color: _navy.withValues(alpha: 0.08),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [_navy, _navyLight],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      OrgLogoAvatar(orgCode: orgCode, size: 40),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              orgCode,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                              ),
+                            ),
+                            Text(
+                              _orgNames[orgCode] ?? 'CICS Organization',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.8),
+                                fontSize: 11.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _gold,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          dateBadge,
+                          style: const TextStyle(
+                            color: _navy,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: badgeColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _selectedCategory.toUpperCase(),
+                          style: TextStyle(
+                            color: badgeColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: _navy,
+                          height: 1.25,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        desc,
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          color: Color(0xFF475569),
+                          height: 1.45,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _previewMetaRow(
+                        Icons.calendar_today_rounded,
+                        '${_fullDateController.text} • ${_timeRangeController.text}',
+                      ),
+                      const SizedBox(height: 8),
+                      _previewMetaRow(
+                        Icons.location_on_rounded,
+                        _locationController.text,
+                      ),
+                      const SizedBox(height: 8),
+                      _previewMetaRow(
+                        Icons.person_rounded,
+                        '${_pointPersonNameController.text} (${_pointPersonRoleController.text})',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _previewMetaRow(IconData icon, String text) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Icon(icon, size: 15, color: _navyLight),
         const SizedBox(width: 8),
@@ -811,12 +843,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           ),
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Icon(icon, color: selected ? _navy : const Color(0xFF64748B)),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
                     title,
@@ -826,6 +860,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       color: selected ? _navy : const Color(0xFF334155),
                     ),
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     subtitle,
                     style: const TextStyle(
@@ -844,6 +879,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   Widget _sectionHeader(IconData icon, String title) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
           padding: const EdgeInsets.all(7),
@@ -882,6 +918,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
+      isDense: true,
       hintText: hint,
       hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
       filled: true,

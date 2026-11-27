@@ -225,203 +225,160 @@ class _OrgDetailsScreenState extends State<OrgDetailsScreen> {
           officeLocation: 'CICS Building, Alangilan Campus',
         );
 
-    final currentUser = PortalRepository.instance.currentUser;
+    final repo = PortalRepository.instance;
+    final currentUser = repo.currentUser;
     final canEditThisOrg =
-        currentUser.orgCode == org.code &&
-            (currentUser.email
-                .toLowerCase()
-                .contains('alangilan@g.batstate-u.edu.ph') ||
-                currentUser.fullName.toLowerCase().contains('officer'));
-
-    final orgPosts = sampleCampusPosts
-        .where((p) =>
-    p.orgCode == org.code && p.isPublished && !p.isArchived)
-        .toList();
+        currentUser.role == 'officer' && currentUser.orgCode == org.code;
 
     return Scaffold(
       body: PortalBackground(
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: 60),
-          children: [
-            PortalHeroHeader(
-              bottomPadding: 30,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      InkWell(
-                        onTap: () => Navigator.pop(context),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.arrow_back_rounded,
-                                  size: 16, color: Colors.white),
-                              SizedBox(width: 6),
-                              Text(
-                                'All Orgs',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      if (canEditThisOrg)
-                        FilledButton.icon(
-                          onPressed: () => _openEditOrgSheet(org),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: gold,
-                            foregroundColor: navy,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 9),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          icon: const Icon(Icons.edit_rounded, size: 16),
-                          label: const Text(
-                            'Edit Org Details',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.14),
-                          border: Border.all(color: gold, width: 2),
-                        ),
-                        child: OrgLogoAvatar(orgCode: org.code, size: 60),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              org.code,
-                              style: const TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              org.fullName,
-                              style: const TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFFE2E8F0),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '"${org.motto}"',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontStyle: FontStyle.italic,
-                                color: gold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
+        child: StreamBuilder<List<CampusPost>>(
+          stream: repo.watchPosts(),
+          builder: (context, snapshot) {
+            final allPosts = snapshot.data ?? const <CampusPost>[];
+            final orgPosts = allPosts
+                .where((p) =>
+            p.orgCode == org.code && p.isPublished && !p.isArchived)
+                .toList();
 
-            PortalResponsiveGrid(
-              spacing: 16,
+            return ListView(
+              padding: const EdgeInsets.only(bottom: 60),
               children: [
-                // Card 1: About & Focus
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: navy.withValues(alpha: 0.08),
-                        blurRadius: 20,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
+                PortalHeroHeader(
+                  bottomPadding: 30,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'ABOUT ORGANIZATION',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
-                          color: slateSub,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          InkWell(
+                            onTap: () => Navigator.pop(context),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.arrow_back_rounded,
+                                      size: 16, color: Colors.white),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'All Orgs',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (canEditThisOrg)
+                            FilledButton.icon(
+                              onPressed: () => _openEditOrgSheet(org),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: gold,
+                                foregroundColor: navy,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 9),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              icon: const Icon(Icons.edit_rounded, size: 16),
+                              label: const Text(
+                                'Edit Org Details',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        org.about,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: navy,
-                          height: 1.5,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withValues(alpha: 0.14),
+                              border: Border.all(color: gold, width: 2),
+                            ),
+                            child: OrgLogoAvatar(orgCode: org.code, size: 60),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  org.code,
+                                  style: const TextStyle(
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  org.fullName,
+                                  style: const TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFFE2E8F0),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '"${org.motto}"',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontStyle: FontStyle.italic,
+                                    color: gold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(height: 20),
 
-                // Card 2: Official Contact & Directory Info
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: navy.withValues(alpha: 0.08),
-                        blurRadius: 20,
-                        offset: const Offset(0, 6),
+                PortalResponsiveGrid(
+                  spacing: 16,
+                  children: [
+                    // Card 1: About & Focus
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: navy.withValues(alpha: 0.08),
+                            blurRadius: 20,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'OFFICIAL DIRECTORY',
+                            'ABOUT ORGANIZATION',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
@@ -429,181 +386,239 @@ class _OrgDetailsScreenState extends State<OrgDetailsScreen> {
                               color: slateSub,
                             ),
                           ),
-                          const SizedBox(height: 14),
-                          _OrgMetaRow(
-                            icon: Icons.alternate_email_rounded,
-                            label: 'G-Suite Email',
-                            value: org.officialEmail,
-                          ),
-                          const SizedBox(height: 11),
-                          _OrgMetaRow(
-                            icon: Icons.person_outline_rounded,
-                            label: 'Adviser',
-                            value: org.adviser,
-                          ),
-                          const SizedBox(height: 11),
-                          _OrgMetaRow(
-                            icon: Icons.location_on_outlined,
-                            label: 'Office',
-                            value: org.officeLocation,
+                          const SizedBox(height: 12),
+                          Text(
+                            org.about,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: navy,
+                              height: 1.5,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
-                      if (widget.onViewFeed != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 16),
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              widget.onViewFeed!();
-                            },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: navy,
-                              side: const BorderSide(color: Color(0xFFCBD5E1)),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            icon: const Icon(Icons.filter_list_rounded,
-                                size: 17),
-                            label: Text(
-                              'Filter Discover Feed by ${org.code}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 12,
-                              ),
-                            ),
+                    ),
+
+                    // Card 2: Official Contact & Directory Info
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: navy.withValues(alpha: 0.08),
+                            blurRadius: 20,
+                            offset: const Offset(0, 6),
                           ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'OFFICIAL DIRECTORY',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.8,
+                                  color: slateSub,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              _OrgMetaRow(
+                                icon: Icons.alternate_email_rounded,
+                                label: 'G-Suite Email',
+                                value: org.officialEmail,
+                              ),
+                              const SizedBox(height: 11),
+                              _OrgMetaRow(
+                                icon: Icons.person_outline_rounded,
+                                label: 'Adviser',
+                                value: org.adviser,
+                              ),
+                              const SizedBox(height: 11),
+                              _OrgMetaRow(
+                                icon: Icons.location_on_outlined,
+                                label: 'Office',
+                                value: org.officeLocation,
+                              ),
+                            ],
+                          ),
+                          if (widget.onViewFeed != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 16),
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  widget.onViewFeed!();
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: navy,
+                                  side: const BorderSide(
+                                      color: Color(0xFFCBD5E1)),
+                                  padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.filter_list_rounded,
+                                    size: 17),
+                                label: Text(
+                                  'Filter Discover Feed by ${org.code}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 22),
+
+                _centeredBody(
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Published by ${org.code}',
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: navy,
                         ),
+                      ),
+                      Text(
+                        '${orgPosts.length} ${orgPosts.length == 1 ? 'post' : 'posts'}',
+                        style: const TextStyle(fontSize: 12, color: slateSub),
+                      ),
                     ],
                   ),
                 ),
-              ],
-            ),
+                const SizedBox(height: 12),
 
-            const SizedBox(height: 22),
-
-            _centeredBody(
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Published by ${org.code}',
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: navy,
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData)
+                  _centeredBody(
+                    const Padding(
+                      padding: EdgeInsets.all(28),
+                      child: Center(
+                        child: CircularProgressIndicator(color: navy),
+                      ),
                     ),
-                  ),
-                  Text(
-                    '${orgPosts.length} ${orgPosts.length == 1 ? 'post' : 'posts'}',
-                    style: const TextStyle(fontSize: 12, color: slateSub),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            if (orgPosts.isEmpty)
-              _centeredBody(
-                Container(
-                  padding: const EdgeInsets.all(28),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: const Text(
-                    'No active announcements or events posted yet.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13, color: slateSub),
-                  ),
-                ),
-              )
-            else
-              PortalResponsiveGrid(
-                spacing: 14,
-                children: orgPosts.map((post) {
-                  return InkWell(
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => EventDetailsScreen(post: post),
-                        ),
-                      );
-                      setState(() {});
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
+                  )
+                else if (orgPosts.isEmpty)
+                  _centeredBody(
+                    Container(
+                      padding: const EdgeInsets.all(28),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: navy.withValues(alpha: 0.07),
-                            blurRadius: 16,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
+                        borderRadius: BorderRadius.circular(22),
                       ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: navy,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              post.dateBadge,
-                              style: const TextStyle(
-                                color: gold,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  post.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                    color: navy,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${post.category} • ${post.location}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 11.5,
-                                    color: slateSub,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right_rounded,
-                              color: slateSub),
-                        ],
+                      child: const Text(
+                        'No active announcements or events posted yet.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13, color: slateSub),
                       ),
                     ),
-                  );
-                }).toList(),
-              ),
-          ],
+                  )
+                else
+                  PortalResponsiveGrid(
+                    spacing: 14,
+                    children: orgPosts.map((post) {
+                      return InkWell(
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => EventDetailsScreen(post: post),
+                            ),
+                          );
+                          setState(() {});
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: navy.withValues(alpha: 0.07),
+                                blurRadius: 16,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: navy,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  post.dateBadge,
+                                  style: const TextStyle(
+                                    color: gold,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      post.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w800,
+                                        color: navy,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${post.category} • ${post.location}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        color: slateSub,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right_rounded,
+                                  color: slateSub),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );

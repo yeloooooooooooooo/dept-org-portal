@@ -131,7 +131,6 @@ class PortalRepository extends ChangeNotifier {
     return _client
         .from('campus_posts')
         .stream(primaryKey: ['id'])
-        .order('created_at', ascending: false)
         .map(
           (rows) => rows
           .map(

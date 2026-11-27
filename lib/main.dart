@@ -99,8 +99,10 @@ class _MainNavShellState extends State<MainNavShell> {
           );
           if (created == true) setState(() {});
         },
-        icon: const Icon(Icons.add_circle_outline,
-            color: Color(0xFFD4AF37)),
+        icon: const Icon(
+          Icons.add_circle_outline,
+          color: Color(0xFFD4AF37),
+        ),
         label: const Text(
           'Post Update',
           style: TextStyle(fontWeight: FontWeight.w700),
@@ -115,8 +117,7 @@ class _MainNavShellState extends State<MainNavShell> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 460),
               child: Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFF09162E), Color(0xFF0F2547)],
@@ -438,8 +439,10 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                     ),
                     child: const Text(
                       'Show Results',
-                      style:
-                      TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ],
@@ -470,505 +473,561 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
     const slateSub = Color(0xFF64748B);
     const cardBorder = Color(0xFFE2E8F0);
 
-    final user = PortalRepository.instance.currentUser;
+    final repo = PortalRepository.instance;
+    final user = repo.currentUser;
     final firstName = user.fullName.split(' ').first;
     final selectedOrg = widget.initialOrg;
 
     final activeFilterCount =
         (selectedOrg != 'All' ? 1 : 0) + (_selectedCategory != 'All' ? 1 : 0);
 
-    final publishedPosts = sampleCampusPosts
-        .where((p) => p.isPublished && !p.isArchived)
-        .toList();
-    final pendingCount = publishedPosts.where((p) => !p.isDone).length;
-
-    final filteredPosts = publishedPosts.where((post) {
-      final matchesOrg = selectedOrg == 'All' || post.orgCode == selectedOrg;
-      final matchesCat =
-          _selectedCategory == 'All' || post.category == _selectedCategory;
-      final q = _searchQuery.trim().toLowerCase();
-      final matchesSearch = q.isEmpty ||
-          post.title.toLowerCase().contains(q) ||
-          post.orgCode.toLowerCase().contains(q) ||
-          post.location.toLowerCase().contains(q);
-      return matchesOrg && matchesCat && matchesSearch;
-    }).toList();
-
     return Scaffold(
       body: PortalBackground(
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: 100),
-          children: [
-            PortalHeroHeader(
-              bottomPadding: 38,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: StreamBuilder<List<CampusPost>>(
+          stream: repo.watchPosts(),
+          builder: (context, snapshot) {
+            final allPosts = snapshot.data ?? const <CampusPost>[];
+            final publishedPosts = allPosts
+                .where((p) => p.isPublished && !p.isArchived)
+                .toList();
+            final pendingCount = publishedPosts.where((p) => !p.isDone).length;
+
+            final filteredPosts = publishedPosts.where((post) {
+              final matchesOrg =
+                  selectedOrg == 'All' || post.orgCode == selectedOrg;
+              final matchesCat = _selectedCategory == 'All' ||
+                  post.category == _selectedCategory;
+              final q = _searchQuery.trim().toLowerCase();
+              final matchesSearch = q.isEmpty ||
+                  post.title.toLowerCase().contains(q) ||
+                  post.orgCode.toLowerCase().contains(q) ||
+                  post.location.toLowerCase().contains(q);
+              return matchesOrg && matchesCat && matchesSearch;
+            }).toList();
+
+            return ListView(
+              padding: const EdgeInsets.only(bottom: 100),
+              children: [
+                PortalHeroHeader(
+                  bottomPadding: 38,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            padding: const EdgeInsets.all(2.5),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.14),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: gold, width: 1.5),
-                            ),
-                            child: ClipOval(
-                              child: Image.asset(
-                                'assets/images/cics_logo.png',
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) => const Icon(
-                                  Icons.shield_rounded,
-                                  color: gold,
-                                  size: 18,
+                          Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                padding: const EdgeInsets.all(2.5),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.14),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: gold, width: 1.5),
+                                ),
+                                child: ClipOval(
+                                  child: Image.asset(
+                                    'assets/images/cics_logo.png',
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) => const Icon(
+                                      Icons.shield_rounded,
+                                      color: gold,
+                                      size: 18,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
+                              const SizedBox(width: 10),
+                              const Text(
+                                'CICS HUB',
+                                style: TextStyle(
+                                  color: gold,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 13,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 10),
-                          const Text(
-                            'CICS HUB',
-                            style: TextStyle(
-                              color: gold,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 13,
-                              letterSpacing: 1.0,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: gold.withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: Text(
+                              pendingCount == 0
+                                  ? 'All caught up! 🎉'
+                                  : '$pendingCount tasks waiting',
+                              style: const TextStyle(
+                                color: gold,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.10),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: gold.withValues(alpha: 0.4),
-                          ),
-                        ),
-                        child: Text(
-                          pendingCount == 0
-                              ? 'All caught up! 🎉'
-                              : '$pendingCount tasks waiting',
-                          style: const TextStyle(
-                            color: gold,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    'Hey $firstName! 👋',
-                    style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -0.4,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'See what your orgs are building this week.',
-                    style: TextStyle(fontSize: 13, color: Color(0xFFCBD5E1)),
-                  ),
-                ],
-              ),
-            ),
-
-            Transform.translate(
-              offset: const Offset(0, -24),
-              child: _centeredBody(
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        height: 48,
-                        decoration: BoxDecoration(
+                      const SizedBox(height: 18),
+                      Text(
+                        'Hey $firstName! 👋',
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: navy.withValues(alpha: 0.10),
-                              blurRadius: 18,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: TextField(
-                          controller: _searchController,
-                          onChanged: (v) => setState(() => _searchQuery = v),
-                          style: const TextStyle(fontSize: 13, color: navy),
-                          decoration: InputDecoration(
-                            hintText: 'Search events, merch, orgs...',
-                            hintStyle:
-                            const TextStyle(fontSize: 13, color: slateSub),
-                            prefixIcon: const Icon(Icons.search,
-                                size: 20, color: slateSub),
-                            suffixIcon: _searchQuery.isNotEmpty
-                                ? IconButton(
-                              icon: const Icon(Icons.close,
-                                  size: 18, color: slateSub),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() => _searchQuery = '');
-                              },
-                            )
-                                : null,
-                            border: InputBorder.none,
-                            contentPadding:
-                            const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    InkWell(
-                      onTap: _openFilterSheet,
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        height: 48,
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        decoration: BoxDecoration(
-                          color: activeFilterCount > 0 ? navy : Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: navy.withValues(alpha: 0.10),
-                              blurRadius: 18,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.tune_rounded,
-                              size: 20,
-                              color: activeFilterCount > 0 ? gold : navy,
-                            ),
-                            if (activeFilterCount > 0) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: gold,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  '$activeFilterCount',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w900,
-                                    color: navy,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            if (activeFilterCount > 0)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _centeredBody(
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      if (selectedOrg != 'All')
-                        InputChip(
-                          label: Text(selectedOrg),
-                          labelStyle: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: navy,
-                          ),
-                          backgroundColor: Colors.white,
-                          deleteIconColor: navy,
-                          side: const BorderSide(color: cardBorder),
-                          onDeleted: () => widget.onOrgChanged('All'),
-                        ),
-                      if (_selectedCategory != 'All')
-                        InputChip(
-                          label: Text(_selectedCategory),
-                          labelStyle: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: navy,
-                          ),
-                          backgroundColor: Colors.white,
-                          deleteIconColor: navy,
-                          side: const BorderSide(color: cardBorder),
-                          onDeleted: () =>
-                              setState(() => _selectedCategory = 'All'),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-
-            _centeredBody(
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    selectedOrg == 'All'
-                        ? 'Happening on campus'
-                        : '$selectedOrg Highlights',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: navy,
-                    ),
-                  ),
-                  Text(
-                    '${filteredPosts.length} ${filteredPosts.length == 1 ? 'post' : 'posts'}',
-                    style: const TextStyle(fontSize: 12, color: slateSub),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            if (filteredPosts.isEmpty)
-              _centeredBody(
-                Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    children: [
-                      Icon(Icons.search_off_rounded,
-                          size: 48, color: slateSub.withValues(alpha: 0.5)),
-                      const SizedBox(height: 10),
-                      const Text(
-                        'No matching posts found',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          color: navy,
+                          letterSpacing: -0.4,
                         ),
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        'Try clearing your search or adjusting your filters.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12, color: slateSub),
+                        'See what your orgs are building this week.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFFCBD5E1),
+                        ),
                       ),
                     ],
                   ),
                 ),
-              )
-            else
-              PortalResponsiveGrid(
-                spacing: 16,
-                children: filteredPosts.map((post) {
-                  final gradientColors = switch (post.category) {
-                    'Events' => const [Color(0xFF0F2547), Color(0xFF2563EB)],
-                    'Merch' => const [Color(0xFF1E293B), Color(0xFFB45309)],
-                    'Membership Fee' => const [
-                      Color(0xFF064E3B),
-                      Color(0xFF059669)
-                    ],
-                    'Educational' => const [
-                      Color(0xFF311042),
-                      Color(0xFF7C3AED)
-                    ],
-                    _ => const [Color(0xFF0F2547), Color(0xFF1E3A8A)],
-                  };
-                  final watermarkIcon = _categoryIcon(post.category);
 
-                  return InkWell(
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => EventDetailsScreen(post: post),
+                Transform.translate(
+                  offset: const Offset(0, -24),
+                  child: _centeredBody(
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: navy.withValues(alpha: 0.10),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              onChanged: (v) =>
+                                  setState(() => _searchQuery = v),
+                              style: const TextStyle(fontSize: 13, color: navy),
+                              decoration: InputDecoration(
+                                hintText: 'Search events, merch, orgs...',
+                                hintStyle: const TextStyle(
+                                  fontSize: 13,
+                                  color: slateSub,
+                                ),
+                                prefixIcon: const Icon(
+                                  Icons.search,
+                                  size: 20,
+                                  color: slateSub,
+                                ),
+                                suffixIcon: _searchQuery.isNotEmpty
+                                    ? IconButton(
+                                  icon: const Icon(
+                                    Icons.close,
+                                    size: 18,
+                                    color: slateSub,
+                                  ),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() => _searchQuery = '');
+                                  },
+                                )
+                                    : null,
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                      );
-                      setState(() {});
-                    },
-                    borderRadius: BorderRadius.circular(22),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: [
-                          BoxShadow(
-                            color: navy.withValues(alpha: 0.08),
-                            blurRadius: 20,
-                            offset: const Offset(0, 6),
+                        const SizedBox(width: 10),
+                        InkWell(
+                          onTap: _openFilterSheet,
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            height: 48,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            decoration: BoxDecoration(
+                              color: activeFilterCount > 0 ? navy : Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: navy.withValues(alpha: 0.10),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.tune_rounded,
+                                  size: 20,
+                                  color: activeFilterCount > 0 ? gold : navy,
+                                ),
+                                if (activeFilterCount > 0) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: gold,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '$activeFilterCount',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w900,
+                                        color: navy,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                if (activeFilterCount > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _centeredBody(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          if (selectedOrg != 'All')
+                            InputChip(
+                              label: Text(selectedOrg),
+                              labelStyle: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: navy,
+                              ),
+                              backgroundColor: Colors.white,
+                              deleteIconColor: navy,
+                              side: const BorderSide(color: cardBorder),
+                              onDeleted: () => widget.onOrgChanged('All'),
+                            ),
+                          if (_selectedCategory != 'All')
+                            InputChip(
+                              label: Text(_selectedCategory),
+                              labelStyle: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: navy,
+                              ),
+                              backgroundColor: Colors.white,
+                              deleteIconColor: navy,
+                              side: const BorderSide(color: cardBorder),
+                              onDeleted: () =>
+                                  setState(() => _selectedCategory = 'All'),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                _centeredBody(
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        selectedOrg == 'All'
+                            ? 'Happening on campus'
+                            : '$selectedOrg Highlights',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: navy,
+                        ),
+                      ),
+                      Text(
+                        '${filteredPosts.length} ${filteredPosts.length == 1 ? 'post' : 'posts'}',
+                        style: const TextStyle(fontSize: 12, color: slateSub),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData)
+                  const Padding(
+                    padding: EdgeInsets.all(48),
+                    child: Center(
+                      child: CircularProgressIndicator(color: navy),
+                    ),
+                  )
+                else if (filteredPosts.isEmpty)
+                  _centeredBody(
+                    Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.search_off_rounded,
+                            size: 48,
+                            color: slateSub.withValues(alpha: 0.5),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'No matching posts found',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              color: navy,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Try clearing your search or adjusting your filters.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12, color: slateSub),
                           ),
                         ],
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            height: 112,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: gradientColors,
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(22)),
+                    ),
+                  )
+                else
+                  PortalResponsiveGrid(
+                    spacing: 16,
+                    children: filteredPosts.map((post) {
+                      final gradientColors = switch (post.category) {
+                        'Events' => const [
+                          Color(0xFF0F2547),
+                          Color(0xFF2563EB),
+                        ],
+                        'Merch' => const [
+                          Color(0xFF1E293B),
+                          Color(0xFFB45309),
+                        ],
+                        'Membership Fee' => const [
+                          Color(0xFF064E3B),
+                          Color(0xFF059669),
+                        ],
+                        'Educational' => const [
+                          Color(0xFF311042),
+                          Color(0xFF7C3AED),
+                        ],
+                        _ => const [Color(0xFF0F2547), Color(0xFF1E3A8A)],
+                      };
+                      final watermarkIcon = _categoryIcon(post.category);
+
+                      return InkWell(
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => EventDetailsScreen(post: post),
                             ),
-                            child: Stack(
-                              children: [
-                                Positioned(
-                                  right: -8,
-                                  bottom: -14,
-                                  child: Icon(
-                                    watermarkIcon,
-                                    size: 88,
-                                    color:
-                                    Colors.white.withValues(alpha: 0.14),
+                          );
+                          setState(() {});
+                        },
+                        borderRadius: BorderRadius.circular(22),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(22),
+                            boxShadow: [
+                              BoxShadow(
+                                color: navy.withValues(alpha: 0.08),
+                                blurRadius: 20,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                height: 112,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: gradientColors,
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(22),
                                   ),
                                 ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
+                                child: Stack(
                                   children: [
-                                    Row(
+                                    Positioned(
+                                      right: -8,
+                                      bottom: -14,
+                                      child: Icon(
+                                        watermarkIcon,
+                                        size: 88,
+                                        color: Colors.white.withValues(
+                                          alpha: 0.14,
+                                        ),
+                                      ),
+                                    ),
+                                    Column(
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
                                       mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white
-                                                .withValues(alpha: 0.18),
-                                            borderRadius:
-                                            BorderRadius.circular(10),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              OrgLogoAvatar(
-                                                orgCode: post.orgCode,
-                                                size: 18,
+                                        Row(
+                                          mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Container(
+                                              padding:
+                                              const EdgeInsets.symmetric(
+                                                horizontal: 9,
+                                                vertical: 4,
                                               ),
-                                              const SizedBox(width: 6),
-                                              Text(
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.18,
+                                                ),
+                                                borderRadius:
+                                                BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                post.category.toUpperCase(),
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w800,
+                                                  letterSpacing: 0.6,
+                                                ),
+                                              ),
+                                            ),
+                                            Container(
+                                              padding:
+                                              const EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: gold,
+                                                borderRadius:
+                                                BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                post.dateBadge,
+                                                style: const TextStyle(
+                                                  color: navy,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        Row(
+                                          children: [
+                                            OrgLogoAvatar(
+                                              orgCode: post.orgCode,
+                                              size: 30,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
                                                 post.orgCode,
                                                 style: const TextStyle(
                                                   color: Colors.white,
                                                   fontWeight: FontWeight.w800,
-                                                  fontSize: 11,
+                                                  fontSize: 13,
                                                 ),
                                               ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 9, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: gold,
-                                            borderRadius:
-                                            BorderRadius.circular(10),
-                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      post.title,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: navy,
+                                        height: 1.25,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      post.description,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        color: slateSub,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.location_on_rounded,
+                                          size: 14,
+                                          color: slateSub,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Expanded(
                                           child: Text(
-                                            post.dateBadge,
+                                            post.location,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
-                                              color: navy,
-                                              fontWeight: FontWeight.w900,
-                                              fontSize: 11,
+                                              fontSize: 11.5,
+                                              color: slateSub,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
                                         ),
                                       ],
                                     ),
-                                    Text(
-                                      post.category.toUpperCase(),
-                                      style: TextStyle(
-                                        color:
-                                        Colors.white.withValues(alpha: 0.85),
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 1.0,
-                                      ),
-                                    ),
                                   ],
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  post.title,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: navy,
-                                    height: 1.25,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.location_on_outlined,
-                                        size: 15, color: slateSub),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: Text(
-                                        post.location,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: slateSub,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      post.isDone ? 'Done ✓' : 'Details →',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w800,
-                                        color: post.isDone
-                                            ? const Color(0xFF16A34A)
-                                            : navy,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );

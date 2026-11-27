@@ -61,294 +61,334 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
     const gold = Color(0xFFD4AF37);
     const slateSub = Color(0xFF64748B);
 
-    final tasks = sampleCampusPosts
-        .where((p) => p.isPublished && !p.isArchived)
-        .toList();
-    final completedCount = tasks.where((p) => p.isDone).length;
-    final progress = tasks.isEmpty ? 0.0 : completedCount / tasks.length;
-
-    const categoryOrder = [
-      'Events',
-      'Merch',
-      'Membership Fee',
-      'Educational',
-    ];
-
-    final groupedTasks = <String, List<CampusPost>>{};
-    for (final cat in categoryOrder) {
-      final items = tasks.where((t) => t.category == cat).toList();
-      if (items.isNotEmpty) {
-        groupedTasks[cat] = items;
-      }
-    }
-    // Include any custom categories if added later
-    for (final task in tasks) {
-      if (!categoryOrder.contains(task.category)) {
-        groupedTasks.putIfAbsent(task.category, () => []).add(task);
-      }
-    }
+    final repo = PortalRepository.instance;
 
     return Scaffold(
       body: PortalBackground(
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: 100),
-          children: [
-            PortalHeroHeader(
-              bottomPadding: 28,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: gold.withValues(alpha: 0.45)),
-                    ),
-                    child: const Text(
-                      'STUDENT CLEARANCE & TRACKER',
-                      style: TextStyle(
-                        color: gold,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.9,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'My Campus Tasks',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -0.4,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$completedCount of ${tasks.length} items completed this semester',
-                    style:
-                    const TextStyle(fontSize: 13, color: Color(0xFFCBD5E1)),
-                  ),
-                  const SizedBox(height: 14),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 8,
-                      backgroundColor: Colors.white.withValues(alpha: 0.15),
-                      valueColor: const AlwaysStoppedAnimation<Color>(gold),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            if (tasks.isEmpty)
-              _centeredBody(
-                Padding(
-                  padding: const EdgeInsets.all(36),
-                  child: Column(
-                    children: [
-                      Icon(Icons.task_alt_rounded,
-                          size: 48, color: slateSub.withValues(alpha: 0.5)),
-                      const SizedBox(height: 10),
-                      const Text(
-                        'No active tasks right now',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                          color: navy,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'New events, merch drops, and membership fees will appear here.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12, color: slateSub),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              ...groupedTasks.entries.map((entry) {
-                final category = entry.key;
-                final items = entry.value;
-                final catDone = items.where((i) => i.isDone).length;
-                final accent = _categoryColor(category);
+        child: ListenableBuilder(
+          listenable: repo,
+          builder: (context, _) {
+            return StreamBuilder<List<CampusPost>>(
+              stream: repo.watchPosts(),
+              builder: (context, snapshot) {
+                final allPosts = snapshot.data ?? const <CampusPost>[];
+                final tasks = allPosts
+                    .where((p) => p.isPublished && !p.isArchived)
+                    .toList();
+                final completedCount =
+                    tasks.where((p) => repo.isPostDone(p.id)).length;
+                final progress =
+                tasks.isEmpty ? 0.0 : completedCount / tasks.length;
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Category Header Row
-                      _centeredBody(
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(7),
-                                  decoration: BoxDecoration(
-                                    color: accent.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Icon(
-                                    _categoryIcon(category),
-                                    size: 16,
-                                    color: accent,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  category,
-                                  style: const TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w800,
-                                    color: navy,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                    color: const Color(0xFFE2E8F0)),
-                              ),
-                              child: Text(
-                                '$catDone / ${items.length} done',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: slateSub,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
+                const categoryOrder = [
+                  'Events',
+                  'Merch',
+                  'Membership Fee',
+                  'Educational',
+                ];
 
-                      // Equal-Height 2-Column Task Grid per Category
-                      PortalResponsiveGrid(
-                        spacing: 14,
-                        children: items.map((post) {
-                          return Container(
-                            padding: const EdgeInsets.all(15),
+                final groupedTasks = <String, List<CampusPost>>{};
+                for (final cat in categoryOrder) {
+                  final items = tasks.where((t) => t.category == cat).toList();
+                  if (items.isNotEmpty) {
+                    groupedTasks[cat] = items;
+                  }
+                }
+                for (final task in tasks) {
+                  if (!categoryOrder.contains(task.category)) {
+                    groupedTasks
+                        .putIfAbsent(task.category, () => [])
+                        .add(task);
+                  }
+                }
+
+                return ListView(
+                  padding: const EdgeInsets.only(bottom: 100),
+                  children: [
+                    PortalHeroHeader(
+                      bottomPadding: 28,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 5),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: Colors.white.withValues(alpha: 0.10),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: post.isDone
-                                    ? const Color(0xFF86EFAC)
-                                    : Colors.transparent,
-                                width: 1.4,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: navy.withValues(alpha: 0.07),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 5),
-                                ),
-                              ],
+                                  color: gold.withValues(alpha: 0.45)),
                             ),
-                            child: Row(
-                              children: [
-                                InkWell(
-                                  onTap: () async {
-                                    await PortalRepository.instance
-                                        .togglePostDone(post);
-                                    setState(() {});
-                                  },
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 180),
-                                    width: 28,
-                                    height: 28,
-                                    decoration: BoxDecoration(
-                                      color: post.isDone
-                                          ? const Color(0xFF16A34A)
-                                          : const Color(0xFFF8FAFC),
-                                      borderRadius: BorderRadius.circular(9),
-                                      border: Border.all(
-                                        color: post.isDone
-                                            ? const Color(0xFF16A34A)
-                                            : const Color(0xFFCBD5E1),
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                    child: post.isDone
-                                        ? const Icon(Icons.check_rounded,
-                                        size: 18, color: Colors.white)
-                                        : null,
-                                  ),
+                            child: const Text(
+                              'STUDENT CLEARANCE & TRACKER',
+                              style: TextStyle(
+                                color: gold,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.9,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'My Campus Tasks',
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: -0.4,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '$completedCount of ${tasks.length} items completed this semester',
+                            style: const TextStyle(
+                                fontSize: 13, color: Color(0xFFCBD5E1)),
+                          ),
+                          const SizedBox(height: 14),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              minHeight: 8,
+                              backgroundColor:
+                              Colors.white.withValues(alpha: 0.15),
+                              valueColor:
+                              const AlwaysStoppedAnimation<Color>(gold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    if (snapshot.connectionState == ConnectionState.waiting &&
+                        !snapshot.hasData)
+                      _centeredBody(
+                        const Padding(
+                          padding: EdgeInsets.all(36),
+                          child: Center(
+                            child: CircularProgressIndicator(color: navy),
+                          ),
+                        ),
+                      )
+                    else if (tasks.isEmpty)
+                      _centeredBody(
+                        Padding(
+                          padding: const EdgeInsets.all(36),
+                          child: Column(
+                            children: [
+                              Icon(Icons.task_alt_rounded,
+                                  size: 48,
+                                  color: slateSub.withValues(alpha: 0.5)),
+                              const SizedBox(height: 10),
+                              const Text(
+                                'No active tasks right now',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15,
+                                  color: navy,
                                 ),
-                                const SizedBox(width: 12),
-                                OrgLogoAvatar(orgCode: post.orgCode, size: 38),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: InkWell(
-                                    onTap: () async {
-                                      await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              EventDetailsScreen(post: post),
-                                        ),
-                                      );
-                                      setState(() {});
-                                    },
-                                    child: Column(
-                                      crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                      mainAxisAlignment:
-                                      MainAxisAlignment.center,
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'New events, merch drops, and membership fees will appear here.',
+                                textAlign: TextAlign.center,
+                                style:
+                                TextStyle(fontSize: 12, color: slateSub),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      ...groupedTasks.entries.map((entry) {
+                        final category = entry.key;
+                        final items = entry.value;
+                        final catDone =
+                            items.where((i) => repo.isPostDone(i.id)).length;
+                        final accent = _categoryColor(category);
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _centeredBody(
+                                Row(
+                                  mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
                                       children: [
-                                        Text(
-                                          post.title,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 13.5,
-                                            fontWeight: FontWeight.w800,
-                                            color: post.isDone ? slateSub : navy,
-                                            decoration: post.isDone
-                                                ? TextDecoration.lineThrough
-                                                : null,
+                                        Container(
+                                          padding: const EdgeInsets.all(7),
+                                          decoration: BoxDecoration(
+                                            color: accent.withValues(alpha: 0.12),
+                                            borderRadius:
+                                            BorderRadius.circular(10),
+                                          ),
+                                          child: Icon(
+                                            _categoryIcon(category),
+                                            size: 16,
+                                            color: accent,
                                           ),
                                         ),
-                                        const SizedBox(height: 3),
+                                        const SizedBox(width: 10),
                                         Text(
-                                          '${post.orgCode} • ${post.dateBadge}',
+                                          category,
                                           style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                            color: slateSub,
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w800,
+                                            color: navy,
                                           ),
                                         ),
                                       ],
                                     ),
-                                  ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                            color: const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: Text(
+                                        '$catDone / ${items.length} done',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                          color: slateSub,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ),
+                              ),
+                              const SizedBox(height: 12),
+                              PortalResponsiveGrid(
+                                spacing: 14,
+                                children: items.map((post) {
+                                  final isDone = repo.isPostDone(post.id);
+
+                                  return Container(
+                                    padding: const EdgeInsets.all(15),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: isDone
+                                            ? const Color(0xFF86EFAC)
+                                            : Colors.transparent,
+                                        width: 1.4,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: navy.withValues(alpha: 0.07),
+                                          blurRadius: 16,
+                                          offset: const Offset(0, 5),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        InkWell(
+                                          onTap: () async {
+                                            await repo.togglePostDone(post);
+                                          },
+                                          borderRadius:
+                                          BorderRadius.circular(10),
+                                          child: AnimatedContainer(
+                                            duration: const Duration(
+                                                milliseconds: 180),
+                                            width: 28,
+                                            height: 28,
+                                            decoration: BoxDecoration(
+                                              color: isDone
+                                                  ? const Color(0xFF16A34A)
+                                                  : const Color(0xFFF8FAFC),
+                                              borderRadius:
+                                              BorderRadius.circular(9),
+                                              border: Border.all(
+                                                color: isDone
+                                                    ? const Color(0xFF16A34A)
+                                                    : const Color(0xFFCBD5E1),
+                                                width: 1.5,
+                                              ),
+                                            ),
+                                            child: isDone
+                                                ? const Icon(Icons.check_rounded,
+                                                size: 18,
+                                                color: Colors.white)
+                                                : null,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        OrgLogoAvatar(
+                                            orgCode: post.orgCode, size: 38),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: InkWell(
+                                            onTap: () async {
+                                              await Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      EventDetailsScreen(
+                                                          post: post),
+                                                ),
+                                              );
+                                            },
+                                            child: Column(
+                                              crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                              mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                              children: [
+                                                Text(
+                                                  post.title,
+                                                  maxLines: 2,
+                                                  overflow:
+                                                  TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontSize: 13.5,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: isDone
+                                                        ? slateSub
+                                                        : navy,
+                                                    decoration: isDone
+                                                        ? TextDecoration
+                                                        .lineThrough
+                                                        : null,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 3),
+                                                Text(
+                                                  '${post.orgCode} • ${post.dateBadge}',
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: slateSub,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                  ],
                 );
-              }),
-          ],
+              },
+            );
+          },
         ),
       ),
     );
