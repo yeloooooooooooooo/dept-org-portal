@@ -116,59 +116,63 @@ class _MainNavShellState extends State<MainNavShell> {
     });
   }
 
-  void _showAnnouncementPopup(CampusPost post) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          backgroundColor: const Color(0xFF0F2547),
-          duration: const Duration(seconds: 5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2),
-          ),
-          content: Row(
-            children: [
-              const Icon(Icons.campaign_rounded, color: Color(0xFFD4AF37)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${post.orgCode} • New ${post.category}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFFD4AF37),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      post.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          action: SnackBarAction(
-            label: 'VIEW',
-            textColor: const Color(0xFFD4AF37),
-            onPressed: () => _openOrgInFeed(post.orgCode),
-          ),
+void _showAnnouncementPopup(CampusPost post) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    final controller = messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        backgroundColor: const Color(0xFF0F2547),
+        duration: const Duration(seconds: 5),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2),
         ),
-      );
+        content: Row(
+          children: [
+            const Icon(Icons.campaign_rounded, color: Color(0xFFD4AF37)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${post.orgCode} • New ${post.category}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFFD4AF37),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    post.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        action: SnackBarAction(
+          label: 'VIEW',
+          textColor: const Color(0xFFD4AF37),
+          onPressed: () => _openOrgInFeed(post.orgCode),
+        ),
+      ),
+    );
+
+    Future.delayed(const Duration(seconds: 5), () {
+      controller.close();
+    });
   }
 
   @override

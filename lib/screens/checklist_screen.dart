@@ -600,47 +600,42 @@ PortalResponsiveGrid(
                                             await repo.togglePostDone(post);
                                             if (!context.mounted) return;
 
-                                            ScaffoldMessenger.of(context)
-                                              ..hideCurrentSnackBar()
-                                              ..showSnackBar(
-                                                SnackBar(
-                                                  behavior:
-                                                      SnackBarBehavior.floating,
-                                                  margin:
-                                                      const EdgeInsets.fromLTRB(
-                                                          16, 0, 16, 16),
-                                                  backgroundColor:
-                                                      const Color(0xFF0F2547),
-                                                  duration: const Duration(
-                                                      seconds: 3),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            12),
-                                                  ),
-                                                  content: Text(
-                                                    wasDone
-                                                        ? 'Moved back to Pending'
-                                                        : 'Marked "${post.title}" as done',
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: const TextStyle(
-                                                      fontSize: 12.5,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                  action: SnackBarAction(
-                                                    label: 'UNDO',
-                                                    textColor:
-                                                        const Color(0xFFD4AF37),
-                                                    onPressed: () => repo
-                                                        .togglePostDone(post),
+                                            final messenger = ScaffoldMessenger.of(context);
+                                            messenger.hideCurrentSnackBar();
+                                            final controller = messenger.showSnackBar(
+                                              SnackBar(
+                                                behavior: SnackBarBehavior.floating,
+                                                margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                                                backgroundColor: const Color(0xFF0F2547),
+                                                duration: const Duration(seconds: 3),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                content: Text(
+                                                  wasDone
+                                                      ? 'Moved back to Pending'
+                                                      : 'Marked "${post.title}" as done',
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 12.5,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Colors.white,
                                                   ),
                                                 ),
-                                              );
+                                                action: SnackBarAction(
+                                                  label: 'UNDO',
+                                                  textColor: const Color(0xFFD4AF37),
+                                                  onPressed: () {
+                                                    repo.togglePostDone(post);
+                                                  },
+                                                ),
+                                              ),
+                                            );
+
+                                            Future.delayed(const Duration(seconds: 3), () {
+                                              controller.close();
+                                            });
                                           },
                                           borderRadius:
                                               BorderRadius.circular(10),
