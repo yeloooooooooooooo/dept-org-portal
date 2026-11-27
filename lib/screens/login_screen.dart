@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../main.dart';
-import '../models/user_profile.dart';
 import '../services/portal_repository.dart';
 import '../widgets/org_logo_avatar.dart';
 
@@ -13,8 +13,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isSignUp = false;
-  String _selectedRole = 'student';
-  String _selectedOrg = 'JPCS';
+  bool _isLoading = false;
   String _selectedProgram = 'BSIT';
   String _selectedYear = '3rd Year';
   bool _obscurePassword = true;
@@ -33,33 +32,83 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _submitAuth() {
-    final enteredName = _nameCtrl.text.trim().isNotEmpty
-        ? _nameCtrl.text.trim()
-        : (_selectedRole == 'officer'
-        ? '$_selectedOrg Officer'
-        : 'CICS Student');
-    final enteredId = _studentIdCtrl.text.trim().isNotEmpty
-        ? _studentIdCtrl.text.trim()
-        : '2024-00142';
+  Future<void> _submitAuth() async {
+    final email = _emailCtrl.text.trim().toLowerCase();
+    final password = _passwordCtrl.text;
 
-    PortalRepository.instance.currentUser = UserProfile(
-      uid: 'local_user_1',
-      fullName: enteredName,
-      email: _emailCtrl.text.trim().isNotEmpty
-          ? _emailCtrl.text.trim()
-          : 'student@cics.edu',
-      studentNumber: enteredId,
-      program: _selectedProgram,
-      yearLevel: _selectedYear,
-      role: _selectedRole,
-      orgCode: _selectedOrg,
-    );
+    if (email.isEmpty || password.isEmpty) {
+      _showSnackBar('Please enter your email and password.', isError: true);
+      return;
+    }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => MainNavShell(userRole: _selectedRole),
+    setState(() => _isLoading = true);
+
+    try {
+      if (_isSignUp) {
+        final fullName = _nameCtrl.text.trim().isNotEmpty
+            ? _nameCtrl.text.trim()
+            : 'CICS Student';
+        final studentId = _studentIdCtrl.text.trim().isNotEmpty
+            ? _studentIdCtrl.text.trim()
+            : '2024-00142';
+
+        final authRes = await Supabase.instance.client.auth.signUp(
+          email: email,
+          password: password,
+        );
+
+        final uid = authRes.user?.id;
+        if (uid == null) {
+          throw Exception('Sign-up succeeded, but no user ID was returned.');
+        }
+
+        // Self-registration always defaults strictly to 'student'
+        await Supabase.instance.client.from('profiles').upsert({
+          'id': uid,
+          'email': email,
+          'full_name': fullName,
+          'student_number': studentId,
+          'program': _selectedProgram,
+          'year_level': _selectedYear,
+          'role': 'student',
+          'org_code': 'CICS SC',
+        });
+      }
+
+      // Role ('student' or 'officer') is resolved purely from the database
+      final role = await PortalRepository.instance.signInAndLoadProfile(
+        email: email,
+        password: password,
+      );
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MainNavShell(userRole: role),
+        ),
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      _showSnackBar(e.message, isError: true);
+    } on PostgrestException catch (e) {
+      if (!mounted) return;
+      _showSnackBar('Profile record error: ${e.message}', isError: true);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar('Unable to sign in: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor:
+        isError ? const Color(0xFFB91C1C) : const Color(0xFF0F2547),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -73,7 +122,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       body: Container(
-        // Rich Two-Tone Light Canvas Backdrop (Soft Ice-Blue to Warm Gold Tint)
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [
@@ -87,14 +135,11 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         child: Stack(
           children: [
-            // --- LIGHT-SIDE INVERSE ARCHITECTURAL DESIGN ---
-            // 1. Crisp Blueprint Grid + Diagonal Tech Lines
             Positioned.fill(
               child: CustomPaint(
                 painter: _InverseBlueprintPainter(),
               ),
             ),
-            // 2. Large Decorative Concentric Rings (Bottom-Left)
             Positioned(
               bottom: -110,
               left: -110,
@@ -110,7 +155,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-            // 3. Soft Navy Decorative Ring (Bottom-Right)
             Positioned(
               bottom: -90,
               right: -90,
@@ -127,12 +171,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-
-            // --- FOREGROUND SCROLLABLE CONTENT ---
             ListView(
               padding: const EdgeInsets.only(bottom: 32),
               children: [
-                // Dark Navy & Gold Hero Header
                 Container(
                   clipBehavior: Clip.antiAlias,
                   decoration: const BoxDecoration(
@@ -206,7 +247,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                // Primary CICS Crest at the Top
                                 Container(
                                   width: 68,
                                   height: 68,
@@ -236,7 +276,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 12),
-
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 14, vertical: 5),
@@ -259,7 +298,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 12),
-
                                 Text(
                                   _isSignUp
                                       ? 'Join the CICS Hub'
@@ -276,7 +314,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 const SizedBox(height: 6),
                                 Text(
                                   _isSignUp
-                                      ? 'Create your student or officer pass in seconds.'
+                                      ? 'Create your student pass in seconds.'
                                       : 'One unified portal for events, merch drops, and org tasks.',
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
@@ -285,8 +323,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 14),
-
-                                // Connected Orgs Strip with Org Logos
                                 Wrap(
                                   alignment: WrapAlignment.center,
                                   spacing: 8,
@@ -342,8 +378,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                 ),
-
-                // Clean Elevated White Auth Card (No Colored Top Line)
                 Transform.translate(
                   offset: const Offset(0, -28),
                   child: Padding(
@@ -371,85 +405,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              const Text(
-                                'CONTINUE AS',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.8,
-                                  color: slateSub,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _RoleTile(
-                                      title: 'Student',
-                                      subtitle: 'Events & tasks',
-                                      icon: Icons.school_rounded,
-                                      selected: _selectedRole == 'student',
-                                      onTap: () => setState(
-                                              () => _selectedRole = 'student'),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: _RoleTile(
-                                      title: 'Org Officer',
-                                      subtitle: 'Manage posts',
-                                      icon: Icons.admin_panel_settings_rounded,
-                                      selected: _selectedRole == 'officer',
-                                      onTap: () => setState(
-                                              () => _selectedRole = 'officer'),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 18),
-
-                              if (_selectedRole == 'officer') ...[
-                                const Text(
-                                  'ORGANIZATION',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.8,
-                                    color: slateSub,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                DropdownButtonFormField<String>(
-                                  initialValue: _selectedOrg,
-                                  decoration: InputDecoration(
-                                    filled: true,
-                                    fillColor: const Color(0xFFF8FAFC),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 14, vertical: 12),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                      borderSide:
-                                      const BorderSide(color: cardBorder),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                      borderSide:
-                                      const BorderSide(color: cardBorder),
-                                    ),
-                                  ),
-                                  items: ['JPCS', 'ACCESS', 'INTESS', 'CICS SC']
-                                      .map((o) => DropdownMenuItem(
-                                      value: o, child: Text(o)))
-                                      .toList(),
-                                  onChanged: (v) {
-                                    if (v != null) {
-                                      setState(() => _selectedOrg = v);
-                                    }
-                                  },
-                                ),
-                                const SizedBox(height: 14),
-                              ],
-
                               if (_isSignUp) ...[
                                 _InputField(
                                   controller: _nameCtrl,
@@ -534,10 +489,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 const SizedBox(height: 12),
                               ],
-
                               _InputField(
                                 controller: _emailCtrl,
-                                label: 'University Email',
+                                label: 'University or Org Email',
                                 hint: '12-34567@g.batstate-u.edu.ph',
                                 icon: Icons.alternate_email_rounded,
                               ),
@@ -545,6 +499,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               TextField(
                                 controller: _passwordCtrl,
                                 obscureText: _obscurePassword,
+                                onSubmitted: (_) =>
+                                _isLoading ? null : _submitAuth(),
                                 decoration: InputDecoration(
                                   labelText: 'Password',
                                   prefixIcon: const Icon(
@@ -577,9 +533,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ),
                               const SizedBox(height: 22),
-
                               FilledButton(
-                                onPressed: _submitAuth,
+                                onPressed: _isLoading ? null : _submitAuth,
                                 style: FilledButton.styleFrom(
                                   backgroundColor: navy,
                                   foregroundColor: Colors.white,
@@ -589,8 +544,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                 ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                                child: _isLoading
+                                    ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.4,
+                                    color: gold,
+                                  ),
+                                )
+                                    : Row(
+                                  mainAxisAlignment:
+                                  MainAxisAlignment.center,
                                   children: [
                                     Text(
                                       _isSignUp
@@ -602,13 +567,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     ),
                                     const SizedBox(width: 8),
-                                    const Icon(Icons.arrow_forward_rounded,
-                                        size: 18, color: gold),
+                                    const Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: 18,
+                                        color: gold),
                                   ],
                                 ),
                               ),
                               const SizedBox(height: 14),
-
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -639,8 +605,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-
-                // Subtle Campus Footer Pill on the Lower Light Canvas
                 Center(
                   child: Container(
                     padding:
@@ -676,124 +640,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-class _InverseBlueprintPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final linePaint = Paint()
-      ..color = const Color(0xFF0F2547).withValues(alpha: 0.045)
-      ..strokeWidth = 1.0;
-
-    // Subtle architectural grid lines across the lower light canvas
-    const step = 44.0;
-    for (double x = 0; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), linePaint);
-    }
-    for (double y = 0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
-    }
-
-    // Diagonal gold accent rays on the lower right
-    final goldRayPaint = Paint()
-      ..color = const Color(0xFFD4AF37).withValues(alpha: 0.14)
-      ..strokeWidth = 1.5;
-    canvas.drawLine(
-      Offset(size.width * 0.65, size.height),
-      Offset(size.width, size.height * 0.55),
-      goldRayPaint,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.75, size.height),
-      Offset(size.width, size.height * 0.68),
-      goldRayPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _RoleTile extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _RoleTile({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const navy = Color(0xFF0F2547);
-    const gold = Color(0xFFD4AF37);
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: selected ? navy : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? gold : const Color(0xFFE2E8F0),
-            width: selected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: selected
-                    ? gold.withValues(alpha: 0.2)
-                    : navy.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                icon,
-                size: 18,
-                color: selected ? gold : navy,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: selected ? Colors.white : navy,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: selected
-                          ? const Color(0xFFCBD5E1)
-                          : const Color(0xFF64748B),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _InputField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -809,23 +655,61 @@ class _InputField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const slateSub = Color(0xFF64748B);
+    const cardBorder = Color(0xFFE2E8F0);
+
     return TextField(
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        prefixIcon: Icon(icon, size: 20, color: const Color(0xFF64748B)),
+        prefixIcon: Icon(icon, size: 20, color: slateSub),
         filled: true,
         fillColor: const Color(0xFFF8FAFC),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderSide: const BorderSide(color: cardBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderSide: const BorderSide(color: cardBorder),
         ),
       ),
     );
   }
+}
+
+class _InverseBlueprintPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final linePaint = Paint()
+      ..color = const Color(0xFF0F2547).withValues(alpha: 0.045)
+      ..strokeWidth = 1.0;
+
+    const step = 44.0;
+    for (double x = 0; x < size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), linePaint);
+    }
+    for (double y = 0; y < size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
+    }
+
+    final goldRayPaint = Paint()
+      ..color = const Color(0xFFD4AF37).withValues(alpha: 0.14)
+      ..strokeWidth = 1.5;
+
+    canvas.drawLine(
+      Offset(size.width * 0.55, size.height),
+      Offset(size.width, size.height * 0.65),
+      goldRayPaint,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.72, size.height),
+      Offset(size.width, size.height * 0.78),
+      goldRayPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

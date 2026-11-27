@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/campus_post.dart';
 import 'screens/checklist_screen.dart';
 import 'screens/create_post_screen.dart';
@@ -12,7 +13,14 @@ import 'services/portal_repository.dart';
 import 'widgets/org_logo_avatar.dart';
 import 'widgets/portal_background.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://npkqnmibhmpumcuxnouy.supabase.co',
+    publishableKey: 'sb_publishable_wmPbd_ulS_jhLfdcIj7CQA_8xLTu9ws',
+  );
+
   runApp(const DeptOrgPortalApp());
 }
 
@@ -261,21 +269,6 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  Iterable<Color> _cardGradient(String category) {
-    switch (category) {
-      case 'Events':
-        return const [Color(0xFF0F2547), Color(0xFF2563EB)];
-      case 'Merch':
-        return const [Color(0xFF1E293B), Color(0xFFB45309)];
-      case 'Membership Fee':
-        return const [Color(0xFF064E3B), Color(0xFF059669)];
-      case 'Educational':
-        return const [Color(0xFF311042), Color(0xFF7C3AED)];
-      default:
-        return const [Color(0xFF0F2547), Color(0xFF1E3A8A)];
-    }
   }
 
   IconData _categoryIcon(String category) {
@@ -745,7 +738,7 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                     ),
                   ),
                   Text(
-                    '${filteredPosts.length}${filteredPosts.length == 1 ? 'post' : 'posts'}',
+                    '${filteredPosts.length} ${filteredPosts.length == 1 ? 'post' : 'posts'}',
                     style: const TextStyle(fontSize: 12, color: slateSub),
                   ),
                 ],
@@ -787,8 +780,14 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                   final gradientColors = switch (post.category) {
                     'Events' => const [Color(0xFF0F2547), Color(0xFF2563EB)],
                     'Merch' => const [Color(0xFF1E293B), Color(0xFFB45309)],
-                    'Membership Fee' => const [Color(0xFF064E3B), Color(0xFF059669)],
-                    'Educational' => const [Color(0xFF311042), Color(0xFF7C3AED)],
+                    'Membership Fee' => const [
+                      Color(0xFF064E3B),
+                      Color(0xFF059669)
+                    ],
+                    'Educational' => const [
+                      Color(0xFF311042),
+                      Color(0xFF7C3AED)
+                    ],
                     _ => const [Color(0xFF0F2547), Color(0xFF1E3A8A)],
                   };
                   final watermarkIcon = _categoryIcon(post.category);
@@ -840,7 +839,7 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                     watermarkIcon,
                                     size: 88,
                                     color:
-                                    Colors.white.withValues(alpha: 0.12),
+                                    Colors.white.withValues(alpha: 0.14),
                                   ),
                                 ),
                                 Column(
@@ -854,30 +853,38 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                       children: [
                                         Container(
                                           padding: const EdgeInsets.symmetric(
-                                              horizontal: 10, vertical: 4),
+                                              horizontal: 8, vertical: 4),
                                           decoration: BoxDecoration(
                                             color: Colors.white
                                                 .withValues(alpha: 0.18),
                                             borderRadius:
-                                            BorderRadius.circular(20),
+                                            BorderRadius.circular(10),
                                           ),
-                                          child: Text(
-                                            '${post.orgCode} •${post.category.toUpperCase()}',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 10,
-                                              letterSpacing: 0.6,
-                                            ),
+                                          child: Row(
+                                            children: [
+                                              OrgLogoAvatar(
+                                                orgCode: post.orgCode,
+                                                size: 18,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                post.orgCode,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                         Container(
                                           padding: const EdgeInsets.symmetric(
-                                              horizontal: 10, vertical: 4),
+                                              horizontal: 9, vertical: 4),
                                           decoration: BoxDecoration(
                                             color: gold,
                                             borderRadius:
-                                            BorderRadius.circular(8),
+                                            BorderRadius.circular(10),
                                           ),
                                           child: Text(
                                             post.dateBadge,
@@ -891,13 +898,13 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                       ],
                                     ),
                                     Text(
-                                      post.title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 19,
+                                      post.category.toUpperCase(),
+                                      style: TextStyle(
+                                        color:
+                                        Colors.white.withValues(alpha: 0.85),
+                                        fontSize: 10.5,
                                         fontWeight: FontWeight.w800,
+                                        letterSpacing: 1.0,
                                       ),
                                     ),
                                   ],
@@ -906,55 +913,51 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-                            child: Row(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                OrgLogoAvatar(orgCode: post.orgCode, size: 36),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
+                                Text(
+                                  post.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: navy,
+                                    height: 1.25,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.location_on_outlined,
+                                        size: 15, color: slateSub),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
                                         post.location,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
                                           fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: navy,
-                                        ),
-                                      ),
-                                      Text(
-                                        post.timeRange,
-                                        style: const TextStyle(
-                                          fontSize: 11,
                                           color: slateSub,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 7),
-                                  decoration: BoxDecoration(
-                                    color: post.isDone
-                                        ? const Color(0xFFDCFCE7)
-                                        : const Color(0xFFF1F5F9),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    post.isDone ? 'Done ✓' : 'Details',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      color: post.isDone
-                                          ? const Color(0xFF166534)
-                                          : navy,
                                     ),
-                                  ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      post.isDone ? 'Done ✓' : 'Details →',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: post.isDone
+                                            ? const Color(0xFF16A34A)
+                                            : navy,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
