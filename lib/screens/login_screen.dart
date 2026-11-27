@@ -468,7 +468,7 @@ Future<void> _submitAuth() async {
                                                 color: cardBorder),
                                           ),
                                         ),
-                                        items: ['BSIT', 'BSCS', 'BSIS']
+                                        items: ['BSIT', 'BSCS']
                                             .map((p) => DropdownMenuItem(
                                             value: p, child: Text(p)))
                                             .toList(),

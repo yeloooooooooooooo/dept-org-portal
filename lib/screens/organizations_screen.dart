@@ -109,7 +109,7 @@ class OrganizationsScreen extends StatefulWidget {
 }
 
 class _OrganizationsScreenState extends State<OrganizationsScreen> {
-  static const _orgOrder = ['JPCS', 'ACCESS', 'INTESS', 'CICS SC'];
+  List<String> get _orgOrder => PortalRepository.instance.allowedOrgCodes;
 
   @override
   Widget build(BuildContext context) {

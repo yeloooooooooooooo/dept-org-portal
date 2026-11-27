@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -60,6 +61,104 @@ class _MainNavShellState extends State<MainNavShell> {
   int _selectedIndex = 0;
   String _homeOrgFilter = 'All';
 
+  StreamSubscription<List<CampusPost>>? _postSub;
+  Set<String>? _knownPostIds;
+
+  @override
+  void initState() {
+    super.initState();
+    _listenForNewAnnouncements();
+  }
+
+  void _listenForNewAnnouncements() {
+    _postSub = PortalRepository.instance.watchPosts().listen((posts) {
+      final currentIds = posts.map((p) => p.id).toSet();
+
+      // First snapshot: record existing posts without popping up notifications
+      if (_knownPostIds == null) {
+        _knownPostIds = currentIds;
+        return;
+      }
+
+      // Detect newly added published posts
+      // Detect newly added published posts relevant to the user's program
+      final newPosts = posts
+          .where((p) =>
+              !_knownPostIds!.contains(p.id) &&
+              p.isPublished &&
+              !p.isArchived &&
+              PortalRepository.instance.isOrgAllowedForCurrentUser(p.orgCode))
+          .toList();
+
+      _knownPostIds = currentIds;
+
+      if (newPosts.isNotEmpty && mounted) {
+        _showAnnouncementPopup(newPosts.first);
+      }
+    });
+  }
+
+  void _showAnnouncementPopup(CampusPost post) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          backgroundColor: const Color(0xFF0F2547),
+          duration: const Duration(seconds: 5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2),
+          ),
+          content: Row(
+            children: [
+              const Icon(Icons.campaign_rounded, color: Color(0xFFD4AF37)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${post.orgCode} • New ${post.category}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFD4AF37),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      post.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          action: SnackBarAction(
+            label: 'VIEW',
+            textColor: const Color(0xFFD4AF37),
+            onPressed: () => _openOrgInFeed(post.orgCode),
+          ),
+        ),
+      );
+  }
+
+  @override
+  void dispose() {
+    _postSub?.cancel();
+    super.dispose();
+  }
+
   void _openOrgInFeed(String orgCode) {
     setState(() {
       _homeOrgFilter = orgCode;
@@ -88,28 +187,28 @@ class _MainNavShellState extends State<MainNavShell> {
       body: pages[_selectedIndex],
       floatingActionButton: isOfficer && _selectedIndex == 0
           ? FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF0F2547),
-        foregroundColor: Colors.white,
-        onPressed: () async {
-          final created = await Navigator.push<bool>(
-            context,
-            MaterialPageRoute(
-              builder: (_) => CreatePostScreen(
-                orgCode: PortalRepository.instance.currentUser.orgCode,
+              backgroundColor: const Color(0xFF0F2547),
+              foregroundColor: Colors.white,
+              onPressed: () async {
+                final created = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CreatePostScreen(
+                      orgCode: PortalRepository.instance.currentUser.orgCode,
+                    ),
+                  ),
+                );
+                if (created == true) setState(() {});
+              },
+              icon: const Icon(
+                Icons.add_circle_outline,
+                color: Color(0xFFD4AF37),
               ),
-            ),
-          );
-          if (created == true) setState(() {});
-        },
-        icon: const Icon(
-          Icons.add_circle_outline,
-          color: Color(0xFFD4AF37),
-        ),
-        label: const Text(
-          'Post Update',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-      )
+              label: const Text(
+                'Post Update',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            )
           : null,
       bottomNavigationBar: SafeArea(
         child: Padding(
@@ -263,7 +362,11 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
-  static const _orgs = ['All', 'JPCS', 'ACCESS', 'INTESS', 'CICS SC'];
+  List<String> get _orgs => [
+        'All',
+        ...PortalRepository.instance.allowedOrgCodes,
+      ];
+
   static const _categories = [
     'All',
     'Events',
@@ -580,7 +683,10 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
           builder: (context, snapshot) {
             final allPosts = snapshot.data ?? const <CampusPost>[];
             final publishedPosts = allPosts
-                .where((p) => p.isPublished && !p.isArchived)
+                .where((p) =>
+                    p.isPublished &&
+                    !p.isArchived &&
+                    repo.isOrgAllowedForCurrentUser(p.orgCode))
                 .toList();
             final pendingCount = publishedPosts.where((p) => !p.isDone).length;
 

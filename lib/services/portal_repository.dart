@@ -63,6 +63,26 @@ class PortalRepository extends ChangeNotifier {
 
   bool get isLoggedIn => _loadedUser != null;
 
+  /// Returns the organization codes relevant to the current user's program.
+  /// Officers see all 4 orgs; BSIT excludes ACCESS; BSCS excludes INTESS.
+  List<String> get allowedOrgCodes {
+    final user = currentUser;
+    if (user.role == 'officer') {
+      return const ['JPCS', 'ACCESS', 'INTESS', 'CICS SC'];
+    }
+    final program = user.program.toUpperCase();
+    if (program == 'BSIT') {
+      return const ['JPCS', 'INTESS', 'CICS SC'];
+    }
+    if (program == 'BSCS') {
+      return const ['JPCS', 'ACCESS', 'CICS SC'];
+    }
+    return const ['JPCS', 'ACCESS', 'INTESS', 'CICS SC'];
+  }
+
+  bool isOrgAllowedForCurrentUser(String orgCode) =>
+      allowedOrgCodes.contains(orgCode);
+
   final Set<String> _completedPostIds = {};
   Set<String> get completedPostIds => Set.unmodifiable(_completedPostIds);
 

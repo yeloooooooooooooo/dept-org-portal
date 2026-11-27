@@ -15,13 +15,10 @@ class ChecklistScreen extends StatefulWidget {
 }
 
 class _ChecklistScreenState extends State<ChecklistScreen> {
-  static const List<String> _orgFilters = [
-    'All Orgs',
-    'JPCS',
-    'ACCESS',
-    'INTESS',
-    'CICS SC',
-  ];
+  List<String> get _orgFilters => [
+      'All Orgs',
+      ...PortalRepository.instance.allowedOrgCodes,
+    ];
 
   static const List<String> _defaultCategories = [
     'Events',
@@ -101,8 +98,11 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
               builder: (context, snapshot) {
                 final allPosts = snapshot.data ?? const <CampusPost>[];
                 final activeTasks = allPosts
-                    .where((p) => p.isPublished && !p.isArchived)
-                    .toList();
+    .where((p) =>
+        p.isPublished &&
+        !p.isArchived &&
+        repo.isOrgAllowedForCurrentUser(p.orgCode))
+    .toList();
 
                 final totalCompleted =
                     activeTasks.where((p) => repo.isPostDone(p.id)).length;
@@ -567,7 +567,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              PortalResponsiveGrid(
+PortalResponsiveGrid(
                                 spacing: 14,
                                 children: items.map((post) {
                                   final isDone = repo.isPostDone(post.id);
@@ -595,10 +595,55 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                                       children: [
                                         InkWell(
                                           onTap: () async {
+                                            final wasDone =
+                                                repo.isPostDone(post.id);
                                             await repo.togglePostDone(post);
+                                            if (!context.mounted) return;
+
+                                            ScaffoldMessenger.of(context)
+                                              ..hideCurrentSnackBar()
+                                              ..showSnackBar(
+                                                SnackBar(
+                                                  behavior:
+                                                      SnackBarBehavior.floating,
+                                                  margin:
+                                                      const EdgeInsets.fromLTRB(
+                                                          16, 0, 16, 16),
+                                                  backgroundColor:
+                                                      const Color(0xFF0F2547),
+                                                  duration: const Duration(
+                                                      seconds: 3),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            12),
+                                                  ),
+                                                  content: Text(
+                                                    wasDone
+                                                        ? 'Moved back to Pending'
+                                                        : 'Marked "${post.title}" as done',
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: const TextStyle(
+                                                      fontSize: 12.5,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                  action: SnackBarAction(
+                                                    label: 'UNDO',
+                                                    textColor:
+                                                        const Color(0xFFD4AF37),
+                                                    onPressed: () => repo
+                                                        .togglePostDone(post),
+                                                  ),
+                                                ),
+                                              );
                                           },
                                           borderRadius:
-                                          BorderRadius.circular(10),
+                                              BorderRadius.circular(10),
                                           child: AnimatedContainer(
                                             duration: const Duration(
                                                 milliseconds: 180),
@@ -609,7 +654,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                                                   ? const Color(0xFF16A34A)
                                                   : const Color(0xFFF8FAFC),
                                               borderRadius:
-                                              BorderRadius.circular(9),
+                                                  BorderRadius.circular(9),
                                               border: Border.all(
                                                 color: isDone
                                                     ? const Color(0xFF16A34A)
@@ -619,9 +664,9 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                                             ),
                                             child: isDone
                                                 ? const Icon(
-                                                Icons.check_rounded,
-                                                size: 18,
-                                                color: Colors.white)
+                                                    Icons.check_rounded,
+                                                    size: 18,
+                                                    color: Colors.white)
                                                 : null,
                                           ),
                                         ),
@@ -643,15 +688,15 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                                             },
                                             child: Column(
                                               crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                                  CrossAxisAlignment.start,
                                               mainAxisAlignment:
-                                              MainAxisAlignment.center,
+                                                  MainAxisAlignment.center,
                                               children: [
                                                 Text(
                                                   post.title,
                                                   maxLines: 2,
                                                   overflow:
-                                                  TextOverflow.ellipsis,
+                                                      TextOverflow.ellipsis,
                                                   style: TextStyle(
                                                     fontSize: 13.5,
                                                     fontWeight: FontWeight.w800,
@@ -660,7 +705,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                                                         : navy,
                                                     decoration: isDone
                                                         ? TextDecoration
-                                                        .lineThrough
+                                                            .lineThrough
                                                         : null,
                                                   ),
                                                 ),
