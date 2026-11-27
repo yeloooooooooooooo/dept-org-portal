@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'firebase_options.dart';
 import 'models/campus_post.dart';
 import 'screens/checklist_screen.dart';
 import 'screens/create_post_screen.dart';
@@ -14,8 +17,21 @@ import 'services/portal_repository.dart';
 import 'widgets/org_logo_avatar.dart';
 import 'widgets/portal_background.dart';
 
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   await Supabase.initialize(
     url: 'https://npkqnmibhmpumcuxnouy.supabase.co',
@@ -83,10 +99,42 @@ class _MainNavShellState extends State<MainNavShell> {
   Set<String>? _knownPostIds;
 
   @override
-  void initState() {
-    super.initState();
-    _listenForNewAnnouncements();
+void initState() {
+  super.initState();
+  _listenForNewAnnouncements();
+  _initPushNotifications();
+}
+
+Future<void> _initPushNotifications() async {
+  try {
+    await PortalRepository.instance.syncFcmToken();
+  } catch (_) {
+    // Ignore token errors if push permission is denied or unsupported on current target
   }
+
+  FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid != null && uid.isNotEmpty && newToken.isNotEmpty) {
+      await Supabase.instance.client
+          .from('profiles')
+          .update({'fcm_token': newToken})
+          .eq('id', uid);
+    }
+  });
+
+  // App opened from background by tapping a notification
+  FirebaseMessaging.onMessageOpenedApp.listen((_) {
+    if (mounted) {
+      setState(() => _selectedIndex = 0);
+    }
+  });
+
+  // App launched from terminated (closed) state by tapping a notification
+  final initialMsg = await FirebaseMessaging.instance.getInitialMessage();
+  if (initialMsg != null && mounted) {
+    setState(() => _selectedIndex = 0);
+  }
+}
 
   void _listenForNewAnnouncements() {
     _postSub = PortalRepository.instance.watchPosts().listen((posts) {
@@ -417,6 +465,136 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
         return Icons.auto_awesome_rounded;
     }
   }
+  void _openNotificationsSheet(
+    BuildContext context,
+    List<JsonRow> notifications,
+  ) {
+    const navy = Color(0xFF0F2547);
+    const slateSub = Color(0xFF64748B);
+    const cardBorder = Color(0xFFE2E8F0);
+    final repo = PortalRepository.instance;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (sheetContext) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(sheetContext).size.height * 0.65,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: cardBorder,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Notifications & Reminders',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: navy,
+                      ),
+                    ),
+                    if (notifications.any((n) => n['is_read'] != true))
+                      TextButton(
+                        onPressed: () async {
+                          await repo.markAllNotificationsRead();
+                        },
+                        child: const Text(
+                          'Mark all read',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: navy,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (notifications.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 28),
+                    child: Center(
+                      child: Text(
+                        'No reminders yet.',
+                        style: TextStyle(fontSize: 13, color: slateSub),
+                      ),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: notifications.length,
+                      separatorBuilder: (_, _) =>
+                          const Divider(height: 1, color: cardBorder),
+                      itemBuilder: (context, index) {
+                        final item = notifications[index];
+                        final id = item['id']?.toString() ?? '';
+                        final title =
+                            item['title']?.toString() ?? 'Reminder';
+                        final message = item['message']?.toString() ?? '';
+                        final isRead = item['is_read'] == true;
+
+                        return ListTile(
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 6),
+                          leading: Icon(
+                            isRead
+                                ? Icons.notifications_none_rounded
+                                : Icons.notifications_active_rounded,
+                            color: isRead ? slateSub : const Color(0xFFB45309),
+                          ),
+                          title: Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight:
+                                  isRead ? FontWeight.w600 : FontWeight.w800,
+                              color: navy,
+                            ),
+                          ),
+                          subtitle: Text(
+                            message,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: slateSub,
+                            ),
+                          ),
+                          onTap: () async {
+                            if (!isRead && id.isNotEmpty) {
+                              await repo.markNotificationRead(id);
+                            }
+                          },
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   void _openFilterSheet() {
     const navy = Color(0xFF0F2547);
@@ -682,7 +860,7 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
     );
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     const navy = Color(0xFF0F2547);
     const gold = Color(0xFFD4AF37);
@@ -713,7 +891,7 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
             final pendingCount = publishedPosts.where((p) => !p.isDone).length;
 
             final orgPosts =
-            allPosts.where((p) => p.orgCode == user.orgCode && !p.isArchived);
+                allPosts.where((p) => p.orgCode == user.orgCode && !p.isArchived);
             final orgLiveCount = orgPosts.where((p) => p.isPublished).length;
             final orgDraftCount = orgPosts.where((p) => !p.isPublished).length;
 
@@ -807,28 +985,59 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                               ),
                             )
                           else
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.10),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: gold.withValues(alpha: 0.4),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                StreamBuilder<List<JsonRow>>(
+                                  stream: repo.watchMyNotifications(),
+                                  builder: (context, notifSnap) {
+                                    final list =
+                                        notifSnap.data ?? const <JsonRow>[];
+                                    final unread = list
+                                        .where((n) => n['is_read'] != true)
+                                        .length;
+                                    return IconButton(
+                                      onPressed: () =>
+                                          _openNotificationsSheet(context, list),
+                                      tooltip: 'Reminders',
+                                      icon: Badge(
+                                        isLabelVisible: unread > 0,
+                                        label: Text('$unread'),
+                                        backgroundColor:
+                                            const Color(0xFFDC2626),
+                                        child: const Icon(
+                                          Icons.notifications_outlined,
+                                          color: gold,
+                                          size: 22,
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
-                              ),
-                              child: Text(
-                                pendingCount == 0
-                                    ? 'All caught up! 🎉'
-                                    : '$pendingCount tasks waiting',
-                                style: const TextStyle(
-                                  color: gold,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.10),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: gold.withValues(alpha: 0.4),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    pendingCount == 0
+                                        ? 'All caught up! 🎉'
+                                        : '$pendingCount tasks waiting',
+                                    style: const TextStyle(
+                                      color: gold,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                         ],
                       ),
@@ -911,16 +1120,16 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                 ),
                                 suffixIcon: _searchQuery.isNotEmpty
                                     ? IconButton(
-                                  icon: const Icon(
-                                    Icons.close,
-                                    size: 18,
-                                    color: slateSub,
-                                  ),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() => _searchQuery = '');
-                                  },
-                                )
+                                        icon: const Icon(
+                                          Icons.close,
+                                          size: 18,
+                                          color: slateSub,
+                                        ),
+                                        onPressed: () {
+                                          _searchController.clear();
+                                          setState(() => _searchQuery = '');
+                                        },
+                                      )
                                     : null,
                                 border: InputBorder.none,
                                 contentPadding: const EdgeInsets.symmetric(
@@ -1101,21 +1310,21 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                     children: filteredPosts.map((post) {
                       final gradientColors = switch (post.category) {
                         'Events' => const [
-                          Color(0xFF0F2547),
-                          Color(0xFF2563EB),
-                        ],
+                            Color(0xFF0F2547),
+                            Color(0xFF2563EB),
+                          ],
                         'Merch' => const [
-                          Color(0xFF1E293B),
-                          Color(0xFFB45309),
-                        ],
+                            Color(0xFF1E293B),
+                            Color(0xFFB45309),
+                          ],
                         'Membership Fee' => const [
-                          Color(0xFF064E3B),
-                          Color(0xFF059669),
-                        ],
+                            Color(0xFF064E3B),
+                            Color(0xFF059669),
+                          ],
                         'Educational' => const [
-                          Color(0xFF311042),
-                          Color(0xFF7C3AED),
-                        ],
+                            Color(0xFF311042),
+                            Color(0xFF7C3AED),
+                          ],
                         _ => const [Color(0xFF0F2547), Color(0xFF1E3A8A)],
                       };
 
@@ -1164,20 +1373,20 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                         _categoryIcon(post.category),
                                         size: 62,
                                         color:
-                                        Colors.white.withValues(alpha: 0.14),
+                                            Colors.white.withValues(alpha: 0.14),
                                       ),
                                     ),
                                     Column(
                                       crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
                                             Container(
                                               padding:
-                                              const EdgeInsets.symmetric(
+                                                  const EdgeInsets.symmetric(
                                                 horizontal: 9,
                                                 vertical: 4,
                                               ),
@@ -1185,7 +1394,7 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                                 color: Colors.white
                                                     .withValues(alpha: 0.18),
                                                 borderRadius:
-                                                BorderRadius.circular(8),
+                                                    BorderRadius.circular(8),
                                               ),
                                               child: Text(
                                                 post.category.toUpperCase(),
@@ -1199,14 +1408,14 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                             ),
                                             Container(
                                               padding:
-                                              const EdgeInsets.symmetric(
+                                                  const EdgeInsets.symmetric(
                                                 horizontal: 9,
                                                 vertical: 4,
                                               ),
                                               decoration: BoxDecoration(
                                                 color: gold,
                                                 borderRadius:
-                                                BorderRadius.circular(8),
+                                                    BorderRadius.circular(8),
                                               ),
                                               child: Text(
                                                 post.dateBadge,

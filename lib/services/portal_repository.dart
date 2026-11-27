@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/campus_post.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
-typedef OrgProfileMap = Map<String, Map<String, dynamic>>;
+typedef JsonRow = Map<String, dynamic>;
+typedef OrgProfileMap = Map<String, JsonRow>;
 typedef TaskCountMap = Map<String, int>;
 
 class UserProfile {
@@ -27,7 +29,7 @@ class UserProfile {
     required this.orgCode,
   });
 
-  factory UserProfile.fromMap(Map<String, dynamic> map) {
+  factory UserProfile.fromMap(JsonRow map) {
     return UserProfile(
       id: map['id'] as String? ?? '',
       email: map['email'] as String? ?? '',
@@ -44,6 +46,8 @@ class UserProfile {
 class PortalRepository extends ChangeNotifier {
   PortalRepository._();
   static final PortalRepository instance = PortalRepository._();
+
+  static const String _defaultWebVapidKey = 'BKrxuV704F_1qe9kA1C5nkUXv-XSdL8gHJNw8CPYAQaBkIGEU26lySfLEvFkwBH3xXWMoXCqtPHHzhB1yrYpGzk';
 
   final SupabaseClient _client = Supabase.instance.client;
 
@@ -141,7 +145,7 @@ class PortalRepository extends ChangeNotifier {
       throw Exception('Sign up failed: no user ID returned.');
     }
 
-    final profileData = {
+    final profileData = <String, dynamic>{
       'id': uid,
       'email': email,
       'full_name': fullName,
@@ -155,6 +159,7 @@ class PortalRepository extends ChangeNotifier {
     await _client.from('profiles').upsert(profileData);
     _loadedUser = UserProfile.fromMap(profileData);
     _completedPostIds.clear();
+    await syncFcmToken();
     notifyListeners();
     return _loadedUser!.role;
   }
@@ -182,8 +187,44 @@ class PortalRepository extends ChangeNotifier {
 
     _loadedUser = UserProfile.fromMap(data);
     await _loadCompletedTasks(uid);
+    await syncFcmToken();
     notifyListeners();
     return _loadedUser!.role;
+  }
+
+  /// Requests push permission (where applicable) and saves the current FCM token
+  /// to `profiles.fcm_token` for the active user.
+Future<void> syncFcmToken({String? webVapidKey}) async {
+    final uid = _client.auth.currentUser?.id ?? currentUser.id;
+    if (uid.isEmpty) return;
+
+    try {
+      final messaging = FirebaseMessaging.instance;
+      if (kIsWeb && !await messaging.isSupported()) {
+        debugPrint('FCM web messaging not supported in this browser context.');
+        return;
+      }
+
+      await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      final effectiveVapidKey = webVapidKey ?? _defaultWebVapidKey;
+      final token = kIsWeb
+          ? await messaging.getToken(vapidKey: effectiveVapidKey)
+          : await messaging.getToken();
+
+      if (token != null && token.isNotEmpty) {
+        await _client
+            .from('profiles')
+            .update({'fcm_token': token})
+            .eq('id', uid);
+      }
+    } catch (e) {
+      debugPrint('FCM token sync skipped: $e');
+    }
   }
 
   /// Restores the profile if a Supabase session is already active.
@@ -200,6 +241,7 @@ class PortalRepository extends ChangeNotifier {
     if (data == null) return null;
     _loadedUser = UserProfile.fromMap(data);
     await _loadCompletedTasks(uid);
+    await syncFcmToken();
     notifyListeners();
     return _loadedUser!.role;
   }
@@ -282,7 +324,7 @@ class PortalRepository extends ChangeNotifier {
     });
   }
 
-/// Updates an organization's editable profile fields in Supabase.
+  /// Updates an organization's editable profile fields in Supabase.
   Future<void> updateOrgProfile({
     required String orgCode,
     required String motto,
@@ -318,13 +360,13 @@ class PortalRepository extends ChangeNotifier {
   }
 
   /// Fetches aggregated student task completion counts keyed by post ID (officers only).
-Future<TaskCountMap> fetchOrgTaskCompletionCounts(String orgCode) async {
+  Future<TaskCountMap> fetchOrgTaskCompletionCounts(String orgCode) async {
     final rows = await _client.rpc(
       'get_org_task_completion_counts',
       params: {'p_org_code': orgCode},
     );
 
-    final Map<String, int> counts = {};
+    final TaskCountMap counts = {};
     if (rows is List) {
       for (final row in rows) {
         if (row is Map) {
@@ -338,5 +380,85 @@ Future<TaskCountMap> fetchOrgTaskCompletionCounts(String orgCode) async {
     }
     return counts;
   }
-  
+
+  /// Fetches eligible students and their task/payment completion status for a post (officers only).
+  Future<List<JsonRow>> fetchPostStudentStatuses({
+    required String postId,
+    required String orgCode,
+  }) async {
+    final rows = await _client.rpc(
+      'get_post_student_statuses',
+      params: {
+        'p_post_id': postId,
+        'p_org_code': orgCode,
+      },
+    );
+
+    if (rows is List) {
+      return rows
+        .whereType()
+        .map((r) => JsonRow.from(r))
+        .toList();
+}
+    return const [];
+  }
+
+  /// Sends in-app payment/clearance reminders to unpaid students (or a single target student).
+  /// Returns the number of reminder notifications sent.
+  Future<int> sendPostPaymentReminders({
+    required String postId,
+    required String orgCode,
+    required String postTitle,
+    String? targetUserId,
+  }) async {
+    final res = await _client.rpc(
+      'send_post_payment_reminders',
+      params: {
+        'p_post_id': postId,
+        'p_org_code': orgCode,
+        'p_post_title': postTitle,
+        if (targetUserId != null) 'p_target_user_id': targetUserId,
+      },
+    );
+
+    if (res is num) return res.toInt();
+    return int.tryParse(res?.toString() ?? '0') ?? 0;
+  }
+
+  /// Streams in-app notifications for the currently signed-in user (newest first).
+  Stream<List<JsonRow>> watchMyNotifications() {
+    final uid = _client.auth.currentUser?.id ?? currentUser.id;
+    if (uid.isEmpty) {
+      return Stream.value(const []);
+    }
+
+    return _client
+        .from('portal_notifications')
+        .stream(primaryKey: ['id'])
+        .eq('recipient_id', uid)
+        .order('created_at', ascending: false)
+        .map(
+          (rows) => rows.map((r) => JsonRow.from(r)).toList(),
+        );
+  }
+
+  /// Marks a single notification as read.
+  Future<void> markNotificationRead(String notificationId) async {
+    await _client
+        .from('portal_notifications')
+        .update({'is_read': true})
+        .eq('id', notificationId);
+  }
+
+  /// Marks all current user's notifications as read.
+  Future<void> markAllNotificationsRead() async {
+    final uid = _client.auth.currentUser?.id ?? currentUser.id;
+    if (uid.isEmpty) return;
+
+    await _client
+        .from('portal_notifications')
+        .update({'is_read': true})
+        .eq('recipient_id', uid)
+        .eq('is_read', false);
+  }
 }

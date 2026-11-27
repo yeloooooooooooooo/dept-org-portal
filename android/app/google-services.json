@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "691270000461",
+    "project_id": "org-portal-d2f3f",
+    "storage_bucket": "org-portal-d2f3f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:691270000461:android:f703806a741e9e6b9ae104",
+        "android_client_info": {
+          "package_name": "com.example.dept_org_portal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyClzK2nV1MD4xAWYlmdrRPZl5--d6sUa6w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

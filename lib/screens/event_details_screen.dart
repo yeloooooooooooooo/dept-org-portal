@@ -27,8 +27,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     }
 
     final normalized = trimmed.startsWith('http://') ||
-        trimmed.startsWith('https://') ||
-        trimmed.startsWith('mailto:')
+            trimmed.startsWith('https://') ||
+            trimmed.startsWith('mailto:')
         ? trimmed
         : 'https://$trimmed';
 
@@ -53,6 +53,388 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     );
   }
 
+  void _openPaymentRemindersSheet(CampusPost post) {
+    const navy = Color(0xFF0F2547);
+    const gold = Color(0xFFD4AF37);
+    const slateSub = Color(0xFF64748B);
+    const cardBorder = Color(0xFFE2E8F0);
+
+    final repo = PortalRepository.instance;
+    late Future<List<JsonRow>> statusesFuture =
+        repo.fetchPostStudentStatuses(postId: post.id, orgCode: post.orgCode);
+    bool isSendingAll = false;
+    final Set<String> notifyingIds = {};
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                22,
+                14,
+                22,
+                MediaQuery.of(sheetContext).viewInsets.bottom + 22,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(sheetContext).size.height * 0.78,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: cardBorder,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Student Status & Reminders',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: navy,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Send in-app reminders to students who haven\'t completed this.',
+                                style: TextStyle(fontSize: 12, color: slateSub),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          icon: const Icon(Icons.close_rounded, color: slateSub),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: FutureBuilder<List<JsonRow>>(
+                        future: statusesFuture,
+                        builder: (context, snap) {
+                          if (snap.connectionState == ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(color: navy),
+                            );
+                          }
+                          if (snap.hasError) {
+                            return Center(
+                              child: Text(
+                                'Failed to load students: ${snap.error}',
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  color: Color(0xFFDC2626),
+                                ),
+                              ),
+                            );
+                          }
+
+                          final rows = snap.data ?? const <JsonRow>[];
+                          final unpaidRows = rows
+                              .where((r) => r['is_done'] != true)
+                              .toList();
+
+                          if (rows.isEmpty) {
+                            return const Center(
+                              child: Text(
+                                'No eligible students found for this organization.',
+                                style: TextStyle(fontSize: 13, color: slateSub),
+                              ),
+                            );
+                          }
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '${unpaidRows.length} unpaid/pending • ${rows.length - unpaidRows.length} done',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: slateSub,
+                                    ),
+                                  ),
+                                  FilledButton.icon(
+                                    onPressed: isSendingAll || unpaidRows.isEmpty
+                                        ? null
+                                        : () async {
+                                            setModalState(
+                                                () => isSendingAll = true);
+                                            try {
+                                              final sent = await repo
+                                                  .sendPostPaymentReminders(
+                                                postId: post.id,
+                                                orgCode: post.orgCode,
+                                                postTitle: post.title,
+                                              );
+                                              if (!mounted) return;
+                                              ScaffoldMessenger.of(this.context)
+                                                  .showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    'Sent reminder to $sent ${sent == 1 ? 'student' : 'students'}.',
+                                                  ),
+                                                  backgroundColor: navy,
+                                                  behavior:
+                                                      SnackBarBehavior.floating,
+                                                ),
+                                              );
+                                            } catch (e) {
+                                              if (!mounted) return;
+                                              ScaffoldMessenger.of(this.context)
+                                                  .showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                      'Could not send reminders: $e'),
+                                                  backgroundColor:
+                                                      const Color(0xFFDC2626),
+                                                  behavior:
+                                                      SnackBarBehavior.floating,
+                                                ),
+                                              );
+                                            } finally {
+                                              if (sheetContext.mounted) {
+                                                setModalState(
+                                                    () => isSendingAll = false);
+                                              }
+                                            }
+                                          },
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: navy,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(11),
+                                      ),
+                                    ),
+                                    icon: isSendingAll
+                                        ? const SizedBox(
+                                            width: 14,
+                                            height: 14,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: gold,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.notifications_active_rounded,
+                                            size: 15,
+                                            color: gold,
+                                          ),
+                                    label: Text(
+                                      isSendingAll
+                                          ? 'Sending...'
+                                          : 'Remind All Unpaid',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Expanded(
+                                child: ListView.separated(
+                                  itemCount: rows.length,
+                                  separatorBuilder: (_, _) =>
+                                      const Divider(height: 1, color: cardBorder),
+                                  itemBuilder: (context, index) {
+                                    final item = rows[index];
+                                    final uid = item['user_id']?.toString() ?? '';
+                                    final name =
+                                        item['full_name']?.toString() ??
+                                            'Student';
+                                    final srCode =
+                                        item['student_number']?.toString() ??
+                                            '';
+                                    final progYear = [
+                                      if ((item['program']?.toString() ?? '')
+                                          .isNotEmpty)
+                                        item['program'].toString(),
+                                      if ((item['year_level']?.toString() ?? '')
+                                          .isNotEmpty)
+                                        item['year_level'].toString(),
+                                    ].join(' • ');
+                                    final isDone = item['is_done'] == true;
+                                    final isNotifying =
+                                        notifyingIds.contains(uid);
+
+                                    return ListTile(
+                                      contentPadding: const EdgeInsets.symmetric(
+                                        vertical: 4,
+                                      ),
+                                      title: Text(
+                                        name,
+                                        style: const TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: navy,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        [
+                                          if (srCode.isNotEmpty) srCode,
+                                          if (progYear.isNotEmpty) progYear,
+                                        ].join(' • '),
+                                        style: const TextStyle(
+                                          fontSize: 11.5,
+                                          color: slateSub,
+                                        ),
+                                      ),
+                                      trailing: isDone
+                                          ? Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: 5,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFDCFCE7),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                              child: const Text(
+                                                'Done / Paid',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: Color(0xFF166534),
+                                                ),
+                                              ),
+                                            )
+                                          : OutlinedButton.icon(
+                                              onPressed: isNotifying ||
+                                                      uid.isEmpty
+                                                  ? null
+                                                  : () async {
+                                                      setModalState(() =>
+                                                          notifyingIds.add(uid));
+                                                      try {
+                                                        await repo
+                                                            .sendPostPaymentReminders(
+                                                          postId: post.id,
+                                                          orgCode: post.orgCode,
+                                                          postTitle: post.title,
+                                                          targetUserId: uid,
+                                                        );
+                                                        if (!mounted) return;
+                                                        ScaffoldMessenger.of(
+                                                                this.context)
+                                                            .showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(
+                                                                'Reminder sent to $name.'),
+                                                            backgroundColor:
+                                                                navy,
+                                                            behavior:
+                                                                SnackBarBehavior
+                                                                    .floating,
+                                                          ),
+                                                        );
+                                                      } finally {
+                                                        if (sheetContext
+                                                            .mounted) {
+                                                          setModalState(() =>
+                                                              notifyingIds
+                                                                  .remove(uid));
+                                                        }
+                                                      }
+                                                    },
+                                              style: OutlinedButton.styleFrom(
+                                                foregroundColor: navy,
+                                                side: const BorderSide(
+                                                    color: cardBorder),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 10,
+                                                  vertical: 6,
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
+                                              ),
+                                              icon: isNotifying
+                                                  ? const SizedBox(
+                                                      width: 13,
+                                                      height: 13,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: navy,
+                                                      ),
+                                                    )
+                                                  : const Icon(
+                                                      Icons.send_rounded,
+                                                      size: 14,
+                                                    ),
+                                              label: Text(
+                                                isNotifying
+                                                    ? 'Sending'
+                                                    : 'Remind',
+                                                style: const TextStyle(
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                            ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() {
+      if (mounted) {
+        setState(() {
+          statusesFuture = repo.fetchPostStudentStatuses(
+            postId: post.id,
+            orgCode: post.orgCode,
+          );
+        });
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     const navy = Color(0xFF0F2547);
@@ -74,18 +456,18 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     final statusLabel = post.isArchived
         ? 'Archived'
         : isDraft
-        ? 'Draft'
-        : 'Open';
+            ? 'Draft'
+            : 'Open';
     final statusBg = post.isArchived
         ? const Color(0xFFF1F5F9)
         : isDraft
-        ? const Color(0xFFFEF3C7)
-        : const Color(0xFFDCFCE7);
+            ? const Color(0xFFFEF3C7)
+            : const Color(0xFFDCFCE7);
     final statusFg = post.isArchived
         ? slateSub
         : isDraft
-        ? const Color(0xFF92400E)
-        : const Color(0xFF166534);
+            ? const Color(0xFF92400E)
+            : const Color(0xFF166534);
 
     return Scaffold(
       body: PortalBackground(
@@ -454,7 +836,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                       ),
                       if (isOwnOrgOfficer && !isDraft) ...[
                         const SizedBox(height: 14),
-                          FutureBuilder<TaskCountMap>(
+                        FutureBuilder<TaskCountMap>(
                           future: repo.fetchOrgTaskCompletionCounts(post.orgCode),
                           builder: (context, countSnap) {
                             final completed = countSnap.data?[post.id] ?? 0;
@@ -502,7 +884,31 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                             );
                           },
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
+                        OutlinedButton.icon(
+                          onPressed: () => _openPaymentRemindersSheet(post),
+                          icon: const Icon(
+                            Icons.notifications_active_outlined,
+                            size: 18,
+                            color: navy,
+                          ),
+                          label: const Text(
+                            'View Unpaid & Send Reminders',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: navy,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: const BorderSide(color: cardBorder),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
                         OutlinedButton.icon(
                           onPressed: () async {
                             final wasArchived = post.isArchived;
@@ -571,7 +977,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 15),
                             side: BorderSide(
                               color:
-                              isDone ? const Color(0xFF16A34A) : cardBorder,
+                                  isDone ? const Color(0xFF16A34A) : cardBorder,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
@@ -630,7 +1036,7 @@ class _InfoRow extends StatelessWidget {
               Text(
                 subtitle,
                 style:
-                const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
               ),
             ],
           ),

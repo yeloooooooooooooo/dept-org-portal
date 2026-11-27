@@ -377,7 +377,7 @@ Future<void> _submitAuth() async {
                                     ),
                                   ),
                                   child: const Text(
-                                    'COLLEGE OF INFORMATION & COMPUTING SCIENCES',
+                                    'COLLEGE OF INFORMATICS & COMPUTING SCIENCES',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       color: Color(0xFFE2E8F0),
