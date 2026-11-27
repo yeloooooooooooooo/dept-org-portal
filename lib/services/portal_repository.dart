@@ -50,16 +50,16 @@ class PortalRepository extends ChangeNotifier {
 
   UserProfile get currentUser =>
       _loadedUser ??
-          const UserProfile(
-            id: '',
-            email: '',
-            fullName: 'CICS Innovator',
-            studentNumber: '',
-            program: 'BSIT',
-            yearLevel: '1st Year',
-            role: 'student',
-            orgCode: 'CICS SC',
-          );
+      const UserProfile(
+        id: '',
+        email: '',
+        fullName: 'CICS Innovator',
+        studentNumber: '',
+        program: 'BSIT',
+        yearLevel: '1st Year',
+        role: 'student',
+        orgCode: 'CICS SC',
+      );
 
   bool get isLoggedIn => _loadedUser != null;
 
@@ -68,6 +68,20 @@ class PortalRepository extends ChangeNotifier {
 
   bool isPostDone(String postId) => _completedPostIds.contains(postId);
 
+  /// Loads completed post IDs for the current user from `student_tasks`.
+  Future<void> _loadCompletedTasks(String uid) async {
+    final rows = await _client
+        .from('student_tasks')
+        .select('post_id')
+        .eq('user_id', uid)
+        .eq('is_done', true);
+
+    _completedPostIds
+      ..clear()
+      ..addAll(rows.map((r) => r['post_id'].toString()));
+  }
+
+  /// Toggles task completion locally AND upserts into `student_tasks` in Supabase.
   Future<void> togglePostDone(CampusPost post) async {
     post.isDone = !post.isDone;
     if (post.isDone) {
@@ -76,9 +90,55 @@ class PortalRepository extends ChangeNotifier {
       _completedPostIds.remove(post.id);
     }
     notifyListeners();
+
+    final uid = _client.auth.currentUser?.id;
+    if (uid != null) {
+      await _client.from('student_tasks').upsert({
+        'user_id': uid,
+        'post_id': post.id,
+        'is_done': post.isDone,
+      });
+    }
   }
 
-  /// Signs in with Supabase Auth and loads the user's profile + role from `profiles`.
+  /// Registers a new student account in Supabase Auth + inserts their `profiles` row.
+  Future<String> signUpStudent({
+    required String email,
+    required String password,
+    required String fullName,
+    required String studentNumber,
+    required String program,
+    required String yearLevel,
+  }) async {
+    final authRes = await _client.auth.signUp(
+      email: email,
+      password: password,
+    );
+
+    final uid = authRes.user?.id;
+    if (uid == null) {
+      throw Exception('Sign up failed: no user ID returned.');
+    }
+
+    final profileData = {
+      'id': uid,
+      'email': email,
+      'full_name': fullName,
+      'student_number': studentNumber,
+      'program': program,
+      'year_level': yearLevel,
+      'role': 'student',
+      'org_code': 'CICS SC',
+    };
+
+    await _client.from('profiles').upsert(profileData);
+    _loadedUser = UserProfile.fromMap(profileData);
+    _completedPostIds.clear();
+    notifyListeners();
+    return _loadedUser!.role;
+  }
+
+  /// Signs in with Supabase Auth and loads the user's profile + tasks.
   Future<String> signInAndLoadProfile({
     required String email,
     required String password,
@@ -100,6 +160,7 @@ class PortalRepository extends ChangeNotifier {
         .single();
 
     _loadedUser = UserProfile.fromMap(data);
+    await _loadCompletedTasks(uid);
     notifyListeners();
     return _loadedUser!.role;
   }
@@ -117,6 +178,7 @@ class PortalRepository extends ChangeNotifier {
 
     if (data == null) return null;
     _loadedUser = UserProfile.fromMap(data);
+    await _loadCompletedTasks(uid);
     notifyListeners();
     return _loadedUser!.role;
   }
@@ -129,22 +191,22 @@ class PortalRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Real-time stream of all campus posts ordered newest first.
+  /// Real-time stream of all campus posts.
   Stream<List<CampusPost>> watchPosts() {
     return _client
         .from('campus_posts')
         .stream(primaryKey: ['id'])
         .map(
           (rows) => rows
-          .map(
-            (row) => CampusPost.fromMap(
-          row['id'].toString(),
-          row,
-          completedIds: _completedPostIds.toList(),
-        ),
-      )
-          .toList(),
-    );
+              .map(
+                (row) => CampusPost.fromMap(
+                  row['id'].toString(),
+                  row,
+                  completedIds: _completedPostIds.toList(),
+                ),
+              )
+              .toList(),
+        );
   }
 
   /// Creates a new post or updates an existing post in Supabase.

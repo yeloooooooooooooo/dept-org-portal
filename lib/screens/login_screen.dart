@@ -60,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return e.message;
   }
 
-  Future<void> _submitAuth() async {
+Future<void> _submitAuth() async {
     setState(() => _errorMessage = null);
 
     final email = _emailCtrl.text.trim().toLowerCase();
@@ -72,8 +72,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
       setState(
-            () => _errorMessage =
-        'Please enter a valid email address (e.g., @g.batstate-u.edu.ph).',
+        () => _errorMessage =
+            'Please enter a valid email address (e.g., @g.batstate-u.edu.ph).',
       );
       return;
     }
@@ -83,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     if (_isSignUp && password.length < 6) {
       setState(
-            () => _errorMessage = 'Password must be at least 6 characters long.',
+        () => _errorMessage = 'Password must be at least 6 characters long.',
       );
       return;
     }
@@ -91,6 +91,8 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final String role;
+
       if (_isSignUp) {
         final fullName = _nameCtrl.text.trim().isNotEmpty
             ? _nameCtrl.text.trim()
@@ -99,34 +101,22 @@ class _LoginScreenState extends State<LoginScreen> {
             ? _studentIdCtrl.text.trim()
             : '2024-00142';
 
-        final authRes = await Supabase.instance.client.auth.signUp(
+        // Creates the Auth user, inserts the 'student' profile, and loads it in one step
+        role = await PortalRepository.instance.signUpStudent(
+          email: email,
+          password: password,
+          fullName: fullName,
+          studentNumber: studentId,
+          program: _selectedProgram,
+          yearLevel: _selectedYear,
+        );
+      } else {
+        // Role ('student' or 'officer') is resolved purely from the database
+        role = await PortalRepository.instance.signInAndLoadProfile(
           email: email,
           password: password,
         );
-
-        final uid = authRes.user?.id;
-        if (uid == null) {
-          throw Exception('Sign-up succeeded, but no user ID was returned.');
-        }
-
-        // Self-registration always defaults strictly to 'student'
-        await Supabase.instance.client.from('profiles').upsert({
-          'id': uid,
-          'email': email,
-          'full_name': fullName,
-          'student_number': studentId,
-          'program': _selectedProgram,
-          'year_level': _selectedYear,
-          'role': 'student',
-          'org_code': 'CICS SC',
-        });
       }
-
-      // Role ('student' or 'officer') is resolved purely from the database
-      final role = await PortalRepository.instance.signInAndLoadProfile(
-        email: email,
-        password: password,
-      );
 
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -144,8 +134,8 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(
-            () => _errorMessage =
-        'Unable to sign in. Check your connection and try again.',
+        () => _errorMessage =
+            'Unable to sign in. Check your connection and try again.',
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
