@@ -81,6 +81,14 @@ Future<void> _submitAuth() async {
       setState(() => _errorMessage = 'Please enter your password.');
       return;
     }
+
+    if (_isSignUp && !email.endsWith('@g.batstate-u.edu.ph')) {
+      setState(
+        () => _errorMessage =
+            'Registration requires a valid @g.batstate-u.edu.ph university email.',
+      );
+      return;
+    }
     if (_isSignUp && password.length < 6) {
       setState(
         () => _errorMessage = 'Password must be at least 6 characters long.',
@@ -141,6 +149,59 @@ Future<void> _submitAuth() async {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  Future<void> _handleForgotPassword() async {
+  final email = _emailCtrl.text.trim().toLowerCase();
+  if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
+    setState(
+      () => _errorMessage =
+          'Enter your account email above first so we can send a reset link.',
+    );
+    return;
+  }
+
+  setState(() {
+    _errorMessage = null;
+    _isLoading = true;
+  });
+
+  try {
+    await PortalRepository.instance.sendPasswordReset(email);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          backgroundColor: const Color(0xFF0F2547),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          content: Text(
+            'Password reset link sent to $email',
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      );
+  } on AuthException catch (e) {
+    if (!mounted) return;
+    setState(() => _errorMessage = _mapAuthError(e));
+  } catch (_) {
+    if (!mounted) return;
+    setState(
+      () => _errorMessage =
+          'Could not send password reset email. Check your connection.',
+    );
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
+  }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -571,6 +632,26 @@ Future<void> _submitAuth() async {
                                   ),
                                 ),
                               ),
+                              if (!_isSignUp)
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    onPressed: _isLoading ? null : _handleForgotPassword,
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    child: const Text(
+                                      'Forgot password?',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: navy,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               if (_errorMessage != null) ...[
                                 const SizedBox(height: 14),
                                 Container(

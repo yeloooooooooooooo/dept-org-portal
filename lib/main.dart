@@ -44,7 +44,25 @@ class DeptOrgPortalApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: const Color(0xFFF3F6FC),
       ),
-      home: const LoginScreen(),
+      home: FutureBuilder<String?>(
+        future: PortalRepository.instance.restoreSessionProfile(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Scaffold(
+              backgroundColor: Color(0xFF0F2547),
+              body: Center(
+                child: CircularProgressIndicator(color: Color(0xFFD4AF37)),
+              ),
+            );
+          }
+
+          final restoredRole = snapshot.data;
+          if (restoredRole != null) {
+            return MainNavShell(userRole: restoredRole);
+          }
+          return const LoginScreen();
+        },
+      ),
     );
   }
 }

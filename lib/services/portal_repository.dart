@@ -211,6 +211,11 @@ class PortalRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Sends a password reset email via Supabase Auth.
+  Future<void> sendPasswordReset(String email) async {
+    await _client.auth.resetPasswordForEmail(email.trim().toLowerCase());
+  }
+
   /// Real-time stream of all campus posts.
   Stream<List<CampusPost>> watchPosts() {
     return _client
