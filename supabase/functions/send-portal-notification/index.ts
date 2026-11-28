@@ -104,6 +104,7 @@ Deno.serve(async (req) => {
     const record = payload.record;
 
     if (!record?.recipient_id) {
+      console.log("Skipped: missing recipient_id", payload);
       return new Response(
         JSON.stringify({ skipped: "Missing recipient_id in payload record" }),
         { status: 200, headers: { "Content-Type": "application/json" } },
@@ -131,6 +132,7 @@ Deno.serve(async (req) => {
 
     const fcmToken = profile?.fcm_token?.trim();
     if (!fcmToken) {
+      console.log("Skipped: no fcm_token for", record.recipient_id);
       return new Response(
         JSON.stringify({ skipped: "Recipient has no fcm_token stored" }),
         { status: 200, headers: { "Content-Type": "application/json" } },
@@ -185,8 +187,9 @@ Deno.serve(async (req) => {
         { status: 500, headers: { "Content-Type": "application/json" } },
       );
     }
-
+    console.log("FCM sent:", record.recipient_id, fcmResult);
     return new Response(
+      
       JSON.stringify({ success: true, fcm: fcmResult }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
