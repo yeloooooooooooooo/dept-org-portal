@@ -4,6 +4,7 @@ import '../models/campus_post.dart';
 import '../services/portal_repository.dart';
 import '../widgets/org_logo_avatar.dart';
 import '../widgets/portal_background.dart';
+import 'org_details_screen.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final CampusPost post;
@@ -15,6 +16,54 @@ class EventDetailsScreen extends StatefulWidget {
 }
 
 class _EventDetailsScreenState extends State<EventDetailsScreen> {
+  bool _isCheckingMembership = true;
+  bool _isApprovedMember = false;
+  String? _membershipStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkMembership();
+  }
+
+  Future<void> _checkMembership() async {
+    final repo = PortalRepository.instance;
+    final user = repo.currentUser;
+    if (!repo.isLoggedIn || user.role == 'officer') {
+      if (mounted) {
+        setState(() {
+          _isApprovedMember = user.role == 'officer';
+          _isCheckingMembership = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      final statuses = await repo.fetchMyMembershipStatuses();
+      final status = statuses[widget.post.orgCode];
+      if (!mounted) return;
+      setState(() {
+        _membershipStatus = status;
+        _isApprovedMember = status == 'approved';
+        _isCheckingMembership = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isApprovedMember = false;
+        _isCheckingMembership = false;
+      });
+    }
+  }
+
+  bool _isEligibleForOrg(String orgCode) {
+    final prog = PortalRepository.instance.currentUser.program.toUpperCase();
+    if (orgCode == 'INTESS') return prog.contains('IT');
+    if (orgCode == 'ACCESS') return prog.contains('CS');
+    return true;
+  }
+
   Future<void> _launchExternal(String rawUrl) async {
     final trimmed = rawUrl.trim();
     if (trimmed.isEmpty) {
@@ -27,8 +76,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     }
 
     final normalized = trimmed.startsWith('http://') ||
-            trimmed.startsWith('https://') ||
-            trimmed.startsWith('mailto:')
+        trimmed.startsWith('https://') ||
+        trimmed.startsWith('mailto:')
         ? trimmed
         : 'https://$trimmed';
 
@@ -61,7 +110,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
     final repo = PortalRepository.instance;
     late Future<List<JsonRow>> statusesFuture =
-        repo.fetchPostStudentStatuses(postId: post.id, orgCode: post.orgCode);
+    repo.fetchPostStudentStatuses(postId: post.id, orgCode: post.orgCode);
     bool isSendingAll = false;
     final Set<String> notifyingIds = {};
 
@@ -170,7 +219,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                             children: [
                               Row(
                                 mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     '${unpaidRows.length} unpaid/pending • ${rows.length - unpaidRows.length} done',
@@ -184,47 +233,47 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                                     onPressed: isSendingAll || unpaidRows.isEmpty
                                         ? null
                                         : () async {
-                                            setModalState(
-                                                () => isSendingAll = true);
-                                            try {
-                                              final sent = await repo
-                                                  .sendPostPaymentReminders(
-                                                postId: post.id,
-                                                orgCode: post.orgCode,
-                                                postTitle: post.title,
-                                              );
-                                              if (!mounted) return;
-                                              ScaffoldMessenger.of(this.context)
-                                                  .showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    'Sent reminder to $sent ${sent == 1 ? 'student' : 'students'}.',
-                                                  ),
-                                                  backgroundColor: navy,
-                                                  behavior:
-                                                      SnackBarBehavior.floating,
-                                                ),
-                                              );
-                                            } catch (e) {
-                                              if (!mounted) return;
-                                              ScaffoldMessenger.of(this.context)
-                                                  .showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                      'Could not send reminders: $e'),
-                                                  backgroundColor:
-                                                      const Color(0xFFDC2626),
-                                                  behavior:
-                                                      SnackBarBehavior.floating,
-                                                ),
-                                              );
-                                            } finally {
-                                              if (sheetContext.mounted) {
-                                                setModalState(
-                                                    () => isSendingAll = false);
-                                              }
-                                            }
-                                          },
+                                      setModalState(
+                                              () => isSendingAll = true);
+                                      try {
+                                        final sent = await repo
+                                            .sendPostPaymentReminders(
+                                          postId: post.id,
+                                          orgCode: post.orgCode,
+                                          postTitle: post.title,
+                                        );
+                                        if (!mounted) return;
+                                        ScaffoldMessenger.of(this.context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Sent reminder to $sent ${sent == 1 ? 'student' : 'students'}.',
+                                            ),
+                                            backgroundColor: navy,
+                                            behavior:
+                                            SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                      } catch (e) {
+                                        if (!mounted) return;
+                                        ScaffoldMessenger.of(this.context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                                'Could not send reminders: $e'),
+                                            backgroundColor:
+                                            const Color(0xFFDC2626),
+                                            behavior:
+                                            SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                      } finally {
+                                        if (sheetContext.mounted) {
+                                          setModalState(
+                                                  () => isSendingAll = false);
+                                        }
+                                      }
+                                    },
                                     style: FilledButton.styleFrom(
                                       backgroundColor: navy,
                                       foregroundColor: Colors.white,
@@ -238,18 +287,18 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                                     ),
                                     icon: isSendingAll
                                         ? const SizedBox(
-                                            width: 14,
-                                            height: 14,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: gold,
-                                            ),
-                                          )
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: gold,
+                                      ),
+                                    )
                                         : const Icon(
-                                            Icons.notifications_active_rounded,
-                                            size: 15,
-                                            color: gold,
-                                          ),
+                                      Icons.notifications_active_rounded,
+                                      size: 15,
+                                      color: gold,
+                                    ),
                                     label: Text(
                                       isSendingAll
                                           ? 'Sending...'
@@ -267,7 +316,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                                 child: ListView.separated(
                                   itemCount: rows.length,
                                   separatorBuilder: (_, _) =>
-                                      const Divider(height: 1, color: cardBorder),
+                                  const Divider(height: 1, color: cardBorder),
                                   itemBuilder: (context, index) {
                                     final item = rows[index];
                                     final uid = item['user_id']?.toString() ?? '';
@@ -287,7 +336,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                                     ].join(' • ');
                                     final isDone = item['is_done'] == true;
                                     final isNotifying =
-                                        notifyingIds.contains(uid);
+                                    notifyingIds.contains(uid);
 
                                     return ListTile(
                                       contentPadding: const EdgeInsets.symmetric(
@@ -313,100 +362,100 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                                       ),
                                       trailing: isDone
                                           ? Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 10,
-                                                vertical: 5,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFDCFCE7),
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                              ),
-                                              child: const Text(
-                                                'Done / Paid',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: Color(0xFF166534),
-                                                ),
-                                              ),
-                                            )
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 5,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFDCFCE7),
+                                          borderRadius:
+                                          BorderRadius.circular(10),
+                                        ),
+                                        child: const Text(
+                                          'Done / Paid',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF166534),
+                                          ),
+                                        ),
+                                      )
                                           : OutlinedButton.icon(
-                                              onPressed: isNotifying ||
-                                                      uid.isEmpty
-                                                  ? null
-                                                  : () async {
-                                                      setModalState(() =>
-                                                          notifyingIds.add(uid));
-                                                      try {
-                                                        await repo
-                                                            .sendPostPaymentReminders(
-                                                          postId: post.id,
-                                                          orgCode: post.orgCode,
-                                                          postTitle: post.title,
-                                                          targetUserId: uid,
-                                                        );
-                                                        if (!mounted) return;
-                                                        ScaffoldMessenger.of(
-                                                                this.context)
-                                                            .showSnackBar(
-                                                          SnackBar(
-                                                            content: Text(
-                                                                'Reminder sent to $name.'),
-                                                            backgroundColor:
-                                                                navy,
-                                                            behavior:
-                                                                SnackBarBehavior
-                                                                    .floating,
-                                                          ),
-                                                        );
-                                                      } finally {
-                                                        if (sheetContext
-                                                            .mounted) {
-                                                          setModalState(() =>
-                                                              notifyingIds
-                                                                  .remove(uid));
-                                                        }
-                                                      }
-                                                    },
-                                              style: OutlinedButton.styleFrom(
-                                                foregroundColor: navy,
-                                                side: const BorderSide(
-                                                    color: cardBorder),
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                  horizontal: 10,
-                                                  vertical: 6,
-                                                ),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(10),
-                                                ),
+                                        onPressed: isNotifying ||
+                                            uid.isEmpty
+                                            ? null
+                                            : () async {
+                                          setModalState(() =>
+                                              notifyingIds.add(uid));
+                                          try {
+                                            await repo
+                                                .sendPostPaymentReminders(
+                                              postId: post.id,
+                                              orgCode: post.orgCode,
+                                              postTitle: post.title,
+                                              targetUserId: uid,
+                                            );
+                                            if (!mounted) return;
+                                            ScaffoldMessenger.of(
+                                                this.context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                    'Reminder sent to $name.'),
+                                                backgroundColor:
+                                                navy,
+                                                behavior:
+                                                SnackBarBehavior
+                                                    .floating,
                                               ),
-                                              icon: isNotifying
-                                                  ? const SizedBox(
-                                                      width: 13,
-                                                      height: 13,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                        color: navy,
-                                                      ),
-                                                    )
-                                                  : const Icon(
-                                                      Icons.send_rounded,
-                                                      size: 14,
-                                                    ),
-                                              label: Text(
-                                                isNotifying
-                                                    ? 'Sending'
-                                                    : 'Remind',
-                                                style: const TextStyle(
-                                                  fontSize: 11.5,
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                              ),
-                                            ),
+                                            );
+                                          } finally {
+                                            if (sheetContext
+                                                .mounted) {
+                                              setModalState(() =>
+                                                  notifyingIds
+                                                      .remove(uid));
+                                            }
+                                          }
+                                        },
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: navy,
+                                          side: const BorderSide(
+                                              color: cardBorder),
+                                          padding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                            BorderRadius.circular(10),
+                                          ),
+                                        ),
+                                        icon: isNotifying
+                                            ? const SizedBox(
+                                          width: 13,
+                                          height: 13,
+                                          child:
+                                          CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: navy,
+                                          ),
+                                        )
+                                            : const Icon(
+                                          Icons.send_rounded,
+                                          size: 14,
+                                        ),
+                                        label: Text(
+                                          isNotifying
+                                              ? 'Sending'
+                                              : 'Remind',
+                                          style: const TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
                                     );
                                   },
                                 ),
@@ -435,6 +484,106 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     });
   }
 
+  Widget _buildMembershipLockedBanner(CampusPost post) {
+    const navy = Color(0xFF0F2547);
+    const slateSub = Color(0xFF64748B);
+    const cardBorder = Color(0xFFE2E8F0);
+
+    final eligible = _isEligibleForOrg(post.orgCode);
+    final isPending = _membershipStatus == 'pending';
+    final restrictionTag = post.orgCode == 'INTESS' ? 'BSIT' : 'BSCS';
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.lock_person_rounded,
+                  color: Color(0xFFB45309),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      eligible
+                          ? (isPending
+                          ? 'Membership Approval Pending'
+                          : '${post.orgCode} Members Only')
+                          : '$restrictionTag Students Only',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: navy,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      eligible
+                          ? (isPending
+                          ? 'Your join request to ${post.orgCode} is awaiting officer approval before you can register or mark this task done.'
+                          : 'Only approved ${post.orgCode} members can access the registration link and checklist actions for this event.')
+                          : 'This event is exclusive to $restrictionTag students enrolled under ${post.orgCode}.',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: slateSub,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (eligible && !isPending) ...[
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => OrgDetailsScreen(orgCode: post.orgCode),
+                  ),
+                );
+                await _checkMembership();
+              },
+              icon: const Icon(Icons.group_add_rounded, size: 18),
+              label: Text(
+                'Go to ${post.orgCode} to Join',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: navy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const navy = Color(0xFF0F2547);
@@ -445,8 +594,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     final post = widget.post;
     final repo = PortalRepository.instance;
     final currentUser = repo.currentUser;
-    final isOwnOrgOfficer =
-        currentUser.role == 'officer' && currentUser.orgCode == post.orgCode;
+    final isOfficer = currentUser.role == 'officer';
+    final isOwnOrgOfficer = isOfficer && currentUser.orgCode == post.orgCode;
 
     final initial = post.pointPersonName.trim().isNotEmpty
         ? post.pointPersonName.trim()[0].toUpperCase()
@@ -456,18 +605,18 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     final statusLabel = post.isArchived
         ? 'Archived'
         : isDraft
-            ? 'Draft'
-            : 'Open';
+        ? 'Draft'
+        : 'Open';
     final statusBg = post.isArchived
         ? const Color(0xFFF1F5F9)
         : isDraft
-            ? const Color(0xFFFEF3C7)
-            : const Color(0xFFDCFCE7);
+        ? const Color(0xFFFEF3C7)
+        : const Color(0xFFDCFCE7);
     final statusFg = post.isArchived
         ? slateSub
         : isDraft
-            ? const Color(0xFF92400E)
-            : const Color(0xFF166534);
+        ? const Color(0xFF92400E)
+        : const Color(0xFF166534);
 
     return Scaffold(
       body: PortalBackground(
@@ -802,11 +951,21 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
                 // Primary External Form CTA & Role-Aware Secondary Action
                 _centeredBody(
-                  Column(
+                  _isCheckingMembership
+                      ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: CircularProgressIndicator(color: navy),
+                    ),
+                  )
+                      : (!isOfficer && !_isApprovedMember)
+                      ? _buildMembershipLockedBanner(post)
+                      : Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       FilledButton.icon(
-                        onPressed: () => _launchExternal(post.formUrl),
+                        onPressed: () =>
+                            _launchExternal(post.formUrl),
                         icon: const Icon(
                           Icons.open_in_new_rounded,
                           size: 18,
@@ -822,7 +981,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                         style: FilledButton.styleFrom(
                           backgroundColor: navy,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
@@ -832,14 +992,17 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                       const Text(
                         "Opens the official organizer's external page.",
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12, color: slateSub),
+                        style:
+                        TextStyle(fontSize: 12, color: slateSub),
                       ),
                       if (isOwnOrgOfficer && !isDraft) ...[
                         const SizedBox(height: 14),
                         FutureBuilder<TaskCountMap>(
-                          future: repo.fetchOrgTaskCompletionCounts(post.orgCode),
+                          future: repo.fetchOrgTaskCompletionCounts(
+                              post.orgCode),
                           builder: (context, countSnap) {
-                            final completed = countSnap.data?[post.id] ?? 0;
+                            final completed =
+                                countSnap.data?[post.id] ?? 0;
                             return Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -847,8 +1010,10 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                               ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF8FAFC),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: cardBorder),
+                                borderRadius:
+                                BorderRadius.circular(14),
+                                border:
+                                Border.all(color: cardBorder),
                               ),
                               child: Row(
                                 children: [
@@ -870,7 +1035,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                                   ),
                                   Text(
                                     countSnap.connectionState ==
-                                            ConnectionState.waiting
+                                        ConnectionState.waiting
                                         ? '...'
                                         : '$completed ${completed == 1 ? 'student' : 'students'}',
                                     style: const TextStyle(
@@ -886,7 +1051,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                         ),
                         const SizedBox(height: 10),
                         OutlinedButton.icon(
-                          onPressed: () => _openPaymentRemindersSheet(post),
+                          onPressed: () =>
+                              _openPaymentRemindersSheet(post),
                           icon: const Icon(
                             Icons.notifications_active_outlined,
                             size: 18,
@@ -901,7 +1067,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                           ),
                           style: OutlinedButton.styleFrom(
                             backgroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 14),
                             side: const BorderSide(color: cardBorder),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
@@ -914,7 +1081,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                             final wasArchived = post.isArchived;
                             await repo.toggleArchivePost(post);
                             if (!mounted) return;
-                            ScaffoldMessenger.of(this.context).showSnackBar(
+                            ScaffoldMessenger.of(this.context)
+                                .showSnackBar(
                               SnackBar(
                                 content: Text(
                                   !wasArchived
@@ -944,14 +1112,15 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                           ),
                           style: OutlinedButton.styleFrom(
                             backgroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 15),
                             side: const BorderSide(color: cardBorder),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
                         ),
-                      ] else if (!isOwnOrgOfficer) ...[
+                      ] else if (!isOfficer) ...[
                         const SizedBox(height: 14),
                         OutlinedButton.icon(
                           onPressed: () async {
@@ -961,7 +1130,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                             isDone
                                 ? Icons.check_circle_rounded
                                 : Icons.check_circle_outline_rounded,
-                            color: isDone ? const Color(0xFF16A34A) : navy,
+                            color: isDone
+                                ? const Color(0xFF16A34A)
+                                : navy,
                           ),
                           label: Text(
                             isDone
@@ -969,15 +1140,19 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                                 : 'Mark as Done',
                             style: TextStyle(
                               fontWeight: FontWeight.w800,
-                              color: isDone ? const Color(0xFF16A34A) : navy,
+                              color: isDone
+                                  ? const Color(0xFF16A34A)
+                                  : navy,
                             ),
                           ),
                           style: OutlinedButton.styleFrom(
                             backgroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 15),
                             side: BorderSide(
-                              color:
-                                  isDone ? const Color(0xFF16A34A) : cardBorder,
+                              color: isDone
+                                  ? const Color(0xFF16A34A)
+                                  : cardBorder,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
@@ -1036,7 +1211,7 @@ class _InfoRow extends StatelessWidget {
               Text(
                 subtitle,
                 style:
-                    const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
               ),
             ],
           ),

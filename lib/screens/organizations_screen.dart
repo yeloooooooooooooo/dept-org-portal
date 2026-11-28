@@ -24,10 +24,10 @@ class OrgOfficerMember {
       );
 
   Map<String, String> toMap() => {
-        'name': name,
-        'position': position,
-        'year': year,
-      };
+    'name': name,
+    'position': position,
+    'year': year,
+  };
 }
 
 class CicsOrgProfile {
@@ -51,17 +51,17 @@ class CicsOrgProfile {
     this.officers = const [],
   });
 
-factory CicsOrgProfile.fromMap(
-    Map<String, dynamic> map, {
-    CicsOrgProfile? fallback,
-  }) {
+  factory CicsOrgProfile.fromMap(
+      Map<String, dynamic> map, {
+        CicsOrgProfile? fallback,
+      }) {
     final code = map['org_code']?.toString() ?? fallback?.code ?? '';
     final rawOfficers = map['officers'];
     final parsedOfficers = rawOfficers is List
         ? rawOfficers
-            .whereType()
-            .map((e) => OrgOfficerMember.fromMap(Map<String, dynamic>.from(e)))
-            .toList()
+        .whereType()
+        .map((e) => OrgOfficerMember.fromMap(Map<String, dynamic>.from(e)))
+        .toList()
         : (fallback?.officers ?? const <OrgOfficerMember>[]);
 
     return CicsOrgProfile(
@@ -99,7 +99,7 @@ final cicsOrgProfiles = <String, CicsOrgProfile>{
     focus: 'Computing & Tech Innovation',
     motto: 'Connecting Future IT Leaders Across the Nation',
     about:
-        'The official student chapter of the Junior Philippine Computer Society at BatStateU Alangilan, empowering CICS students through hackathons, coding bootcamps, and industry tech talks.',
+    'The official student chapter of the Junior Philippine Computer Society at BatStateU Alangilan, empowering CICS students through hackathons, coding bootcamps, and industry tech talks.',
     adviser: 'Engr. Mark Anthony Reyes, MIT',
     officeLocation: 'CICS Building, 2nd Floor • Org Room A',
   ),
@@ -109,7 +109,7 @@ final cicsOrgProfiles = <String, CicsOrgProfile>{
     focus: 'Computer Science & Algorithms',
     motto: 'Innovating Through Logic, Research, and Code',
     about:
-        'The premier academic organization for Bachelor of Science in Computer Science students, spearheading algorithmic workshops, research colloquiums, and software engineering sprints.',
+    'The premier academic organization for Bachelor of Science in Computer Science students, spearheading algorithmic workshops, research colloquiums, and software engineering sprints.',
     adviser: 'Prof. Clarissa Mae Mendoza, MSCS',
     officeLocation: 'CICS Building, 2nd Floor • Org Room B',
   ),
@@ -119,7 +119,7 @@ final cicsOrgProfiles = <String, CicsOrgProfile>{
     focus: 'Information Technology & Systems',
     motto: 'Bridging Systems, Enterprise, and Digital Solutions',
     about:
-        'The official program organization for BS Information Technology students at BatStateU Alangilan, focused on web/mobile development, networking labs, and IT industry readiness.',
+    'The official program organization for BS Information Technology students at BatStateU Alangilan, focused on web/mobile development, networking labs, and IT industry readiness.',
     adviser: 'Prof. Jerome Patrick Villanueva, MIT',
     officeLocation: 'CICS Building, 3rd Floor • IT Hub',
   ),
@@ -129,7 +129,7 @@ final cicsOrgProfiles = <String, CicsOrgProfile>{
     focus: 'Student Governance & Welfare',
     motto: 'Service, Integrity, and Excellence for Every CICS Student',
     about:
-        'The highest student governing body of the College of Informatics and Computing Sciences at BatStateU Alangilan, championing student welfare, college-wide assemblies, and institutional representation.',
+    'The highest student governing body of the College of Informatics and Computing Sciences at BatStateU Alangilan, championing student welfare, college-wide assemblies, and institutional representation.',
     adviser: 'Dr. Elena Santos-Bautista',
     officeLocation: 'CICS Building, Ground Floor • Student Council Office',
   ),
@@ -145,7 +145,179 @@ class OrganizationsScreen extends StatefulWidget {
 }
 
 class _OrganizationsScreenState extends State<OrganizationsScreen> {
-  List<String> get _orgOrder => PortalRepository.instance.allowedOrgCodes;
+  List<String> get _orgOrder => cicsOrgProfiles.keys.toList();
+
+  Map<String, String> _membershipStatuses = {};
+  final Set<String> _submittingOrgs = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMembershipStatuses();
+  }
+
+  Future<void> _loadMembershipStatuses() async {
+    final repo = PortalRepository.instance;
+    if (!repo.isLoggedIn || repo.currentUser.role == 'officer') return;
+    try {
+      final statuses = await repo.fetchMyMembershipStatuses();
+      if (!mounted) return;
+      setState(() => _membershipStatuses = statuses);
+    } catch (_) {
+      // Keep UI responsive even if offline
+    }
+  }
+
+  Future<void> _handleJoinOrg(String orgCode) async {
+    setState(() => _submittingOrgs.add(orgCode));
+    try {
+      final repo = PortalRepository.instance;
+      await repo.requestOrgMembership(orgCode);
+      await _loadMembershipStatuses();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Membership request sent to $orgCode.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not send request: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _submittingOrgs.remove(orgCode));
+      }
+    }
+  }
+
+  bool _isEligibleForOrg(String orgCode) {
+    final prog = PortalRepository.instance.currentUser.program.toUpperCase();
+    if (orgCode == 'INTESS') return prog.contains('IT');
+    if (orgCode == 'ACCESS') return prog.contains('CS');
+    return true;
+  }
+
+  Widget _buildJoinActionButton(String orgCode) {
+    const navy = Color(0xFF0F2547);
+
+    if (!_isEligibleForOrg(orgCode)) {
+      final restrictionLabel = orgCode == 'INTESS' ? 'BSIT Only' : 'BSCS Only';
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.lock_outline_rounded,
+                size: 13, color: Color(0xFF64748B)),
+            const SizedBox(width: 4),
+            Text(
+              restrictionLabel,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final status = _membershipStatuses[orgCode];
+    final isSubmitting = _submittingOrgs.contains(orgCode);
+
+    if (status == 'approved') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFDCFCE7),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_circle_rounded,
+                size: 14, color: Color(0xFF15803D)),
+            SizedBox(width: 4),
+            Text(
+              'Member',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF15803D),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (status == 'pending') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFEF3C7),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.hourglass_top_rounded,
+                size: 14, color: Color(0xFFB45309)),
+            SizedBox(width: 4),
+            Text(
+              'Pending',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFFB45309),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 30,
+      child: FilledButton.icon(
+        onPressed: isSubmitting ? null : () => _handleJoinOrg(orgCode),
+        style: FilledButton.styleFrom(
+          backgroundColor: navy,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        icon: isSubmitting
+            ? const SizedBox(
+          width: 12,
+          height: 12,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Colors.white,
+          ),
+        )
+            : const Icon(Icons.group_add_rounded, size: 14),
+        label: Text(status == 'rejected' ? 'Re-apply' : 'Join'),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -229,9 +401,9 @@ class _OrganizationsScreenState extends State<OrganizationsScreen> {
                         final fallback = cicsOrgProfiles[code]!;
                         final org = remoteOrgs.containsKey(code)
                             ? CicsOrgProfile.fromMap(
-                                remoteOrgs[code]!,
-                                fallback: fallback,
-                              )
+                          remoteOrgs[code]!,
+                          fallback: fallback,
+                        )
                             : fallback;
 
                         final isOwnOrg =
@@ -252,6 +424,7 @@ class _OrganizationsScreenState extends State<OrganizationsScreen> {
                                 ),
                               ),
                             );
+                            await _loadMembershipStatuses();
                           },
                           borderRadius: BorderRadius.circular(24),
                           child: Container(
@@ -288,7 +461,7 @@ class _OrganizationsScreenState extends State<OrganizationsScreen> {
                                         Expanded(
                                           child: Column(
                                             crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                            CrossAxisAlignment.start,
                                             children: [
                                               Row(
                                                 children: [
@@ -297,7 +470,7 @@ class _OrganizationsScreenState extends State<OrganizationsScreen> {
                                                     style: const TextStyle(
                                                       fontSize: 18,
                                                       fontWeight:
-                                                          FontWeight.w900,
+                                                      FontWeight.w900,
                                                       color: navy,
                                                     ),
                                                   ),
@@ -311,15 +484,15 @@ class _OrganizationsScreenState extends State<OrganizationsScreen> {
                                                       decoration: BoxDecoration(
                                                         color: navy,
                                                         borderRadius:
-                                                            BorderRadius
-                                                                .circular(8),
+                                                        BorderRadius
+                                                            .circular(8),
                                                       ),
                                                       child: const Text(
                                                         'Your Org',
                                                         style: TextStyle(
                                                           fontSize: 10,
                                                           fontWeight:
-                                                              FontWeight.w800,
+                                                          FontWeight.w800,
                                                           color: gold,
                                                         ),
                                                       ),
@@ -368,7 +541,7 @@ class _OrganizationsScreenState extends State<OrganizationsScreen> {
                                   padding: const EdgeInsets.only(top: 16),
                                   child: Row(
                                     mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                                    MainAxisAlignment.spaceBetween,
                                     children: [
                                       Container(
                                         padding: const EdgeInsets.symmetric(
@@ -376,12 +549,12 @@ class _OrganizationsScreenState extends State<OrganizationsScreen> {
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFF1F5F9),
                                           borderRadius:
-                                              BorderRadius.circular(10),
+                                          BorderRadius.circular(10),
                                         ),
                                         child: Text(
                                           postSnapshot.connectionState ==
-                                                      ConnectionState.waiting &&
-                                                  !postSnapshot.hasData
+                                              ConnectionState.waiting &&
+                                              !postSnapshot.hasData
                                               ? 'Loading posts...'
                                               : '$postCount active ${postCount == 1 ? 'post' : 'posts'}',
                                           style: const TextStyle(
@@ -391,25 +564,28 @@ class _OrganizationsScreenState extends State<OrganizationsScreen> {
                                           ),
                                         ),
                                       ),
-                                      Row(
-                                        children: [
-                                          Text(
-                                            isOwnOrg
-                                                ? 'Manage & View'
-                                                : 'View Org',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w800,
-                                              color: navy,
+                                      if (!isOfficerAccount && repo.isLoggedIn)
+                                        _buildJoinActionButton(org.code)
+                                      else
+                                        Row(
+                                          children: [
+                                            Text(
+                                              isOwnOrg
+                                                  ? 'Manage & View'
+                                                  : 'View Org',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w800,
+                                                color: navy,
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          const Icon(
-                                              Icons.arrow_forward_rounded,
-                                              size: 16,
-                                              color: navy),
-                                        ],
-                                      ),
+                                            const SizedBox(width: 4),
+                                            const Icon(
+                                                Icons.arrow_forward_rounded,
+                                                size: 16,
+                                                color: navy),
+                                          ],
+                                        ),
                                     ],
                                   ),
                                 ),

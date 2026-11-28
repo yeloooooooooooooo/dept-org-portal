@@ -16,7 +16,7 @@ class UserProfile {
   final String program;
   final String yearLevel;
   final String role; // 'student' or 'officer'
-  final String orgCode;
+  final String orgCode; // Populated primarily for officer accounts
 
   const UserProfile({
     required this.id,
@@ -38,16 +38,18 @@ class UserProfile {
       program: map['program'] as String? ?? 'BSIT',
       yearLevel: map['year_level'] as String? ?? '1st Year',
       role: map['role'] as String? ?? 'student',
-      orgCode: map['org_code'] as String? ?? 'CICS SC',
+      orgCode: map['org_code'] as String? ?? '',
     );
   }
 }
 
 class PortalRepository extends ChangeNotifier {
   PortalRepository._();
+
   static final PortalRepository instance = PortalRepository._();
 
-  static const String _defaultWebVapidKey = 'BKrxuV704F_1qe9kA1C5nkUXv-XSdL8gHJNw8CPYAQaBkIGEU26lySfLEvFkwBH3xXWMoXCqtPHHzhB1yrYpGzk';
+  static const String _defaultWebVapidKey =
+      'BKrxuV704F_1qe9kA1C5nkUXv-XSdL8gHJNw8CPYAQaBkIGEU26lySfLEvFkwBH3xXWMoXCqtPHHzhB1yrYpGzk';
 
   final SupabaseClient _client = Supabase.instance.client;
 
@@ -55,40 +57,51 @@ class PortalRepository extends ChangeNotifier {
 
   UserProfile get currentUser =>
       _loadedUser ??
-      const UserProfile(
-        id: '',
-        email: '',
-        fullName: 'CICS Innovator',
-        studentNumber: '',
-        program: 'BSIT',
-        yearLevel: '1st Year',
-        role: 'student',
-        orgCode: 'CICS SC',
-      );
+          const UserProfile(
+            id: '',
+            email: '',
+            fullName: 'CICS Innovator',
+            studentNumber: '',
+            program: 'BSIT',
+            yearLevel: '1st Year',
+            role: 'student',
+            orgCode: '',
+          );
 
   bool get isLoggedIn => _loadedUser != null;
 
-  /// Returns the organization codes relevant to the current user's program.
-  /// Officers see all 4 orgs; BSIT excludes ACCESS; BSCS excludes INTESS.
+  /// Cached set of organization codes where the student's membership status is 'approved'.
+  final Set<String> _approvedOrgCodes = {};
+
+  Set<String> get approvedOrgCodes => Set.unmodifiable(_approvedOrgCodes);
+
+  /// Loads approved org memberships for the current user from `org_memberships`.
+  Future<void> loadApprovedMemberships(String uid) async {
+    final rows = await _client
+        .from('org_memberships')
+        .select('org_code')
+        .eq('user_id', uid)
+        .eq('status', 'approved');
+
+    _approvedOrgCodes
+      ..clear()
+      ..addAll(rows.map((r) => r['org_code'].toString()));
+    notifyListeners();
+  }
+
+  /// Officers see all 4 orgs; students only see orgs where their membership is approved.
   List<String> get allowedOrgCodes {
-    final user = currentUser;
-    if (user.role == 'officer') {
+    if (currentUser.role == 'officer') {
       return const ['JPCS', 'ACCESS', 'INTESS', 'CICS SC'];
     }
-    final program = user.program.toUpperCase();
-    if (program == 'BSIT') {
-      return const ['JPCS', 'INTESS', 'CICS SC'];
-    }
-    if (program == 'BSCS') {
-      return const ['JPCS', 'ACCESS', 'CICS SC'];
-    }
-    return const ['JPCS', 'ACCESS', 'INTESS', 'CICS SC'];
+    return _approvedOrgCodes.toList();
   }
 
   bool isOrgAllowedForCurrentUser(String orgCode) =>
       allowedOrgCodes.contains(orgCode);
 
   final Set<String> _completedPostIds = {};
+
   Set<String> get completedPostIds => Set.unmodifiable(_completedPostIds);
 
   bool isPostDone(String postId) => _completedPostIds.contains(postId);
@@ -127,6 +140,7 @@ class PortalRepository extends ChangeNotifier {
   }
 
   /// Registers a new student account in Supabase Auth + inserts their `profiles` row.
+  /// Starts with zero org memberships until the student requests to join and is approved.
   Future<String> signUpStudent({
     required String email,
     required String password,
@@ -153,18 +167,18 @@ class PortalRepository extends ChangeNotifier {
       'program': program,
       'year_level': yearLevel,
       'role': 'student',
-      'org_code': 'CICS SC',
     };
 
     await _client.from('profiles').upsert(profileData);
     _loadedUser = UserProfile.fromMap(profileData);
     _completedPostIds.clear();
+    _approvedOrgCodes.clear();
     await syncFcmToken();
     notifyListeners();
     return _loadedUser!.role;
   }
 
-  /// Signs in with Supabase Auth and loads the user's profile + tasks.
+  /// Signs in with Supabase Auth and loads the user's profile, tasks, and approved orgs.
   Future<String> signInAndLoadProfile({
     required String email,
     required String password,
@@ -186,7 +200,10 @@ class PortalRepository extends ChangeNotifier {
         .single();
 
     _loadedUser = UserProfile.fromMap(data);
-    await _loadCompletedTasks(uid);
+    await Future.wait([
+      _loadCompletedTasks(uid),
+      loadApprovedMemberships(uid),
+    ]);
     await syncFcmToken();
     notifyListeners();
     return _loadedUser!.role;
@@ -194,7 +211,7 @@ class PortalRepository extends ChangeNotifier {
 
   /// Requests push permission (where applicable) and saves the current FCM token
   /// to `profiles.fcm_token` for the active user.
-Future<void> syncFcmToken({String? webVapidKey}) async {
+  Future<void> syncFcmToken({String? webVapidKey}) async {
     final uid = _client.auth.currentUser?.id ?? currentUser.id;
     if (uid.isEmpty) return;
 
@@ -240,7 +257,10 @@ Future<void> syncFcmToken({String? webVapidKey}) async {
 
     if (data == null) return null;
     _loadedUser = UserProfile.fromMap(data);
-    await _loadCompletedTasks(uid);
+    await Future.wait([
+      _loadCompletedTasks(uid),
+      loadApprovedMemberships(uid),
+    ]);
     await syncFcmToken();
     notifyListeners();
     return _loadedUser!.role;
@@ -251,6 +271,7 @@ Future<void> syncFcmToken({String? webVapidKey}) async {
     await _client.auth.signOut();
     _loadedUser = null;
     _completedPostIds.clear();
+    _approvedOrgCodes.clear();
     notifyListeners();
   }
 
@@ -265,16 +286,18 @@ Future<void> syncFcmToken({String? webVapidKey}) async {
         .from('campus_posts')
         .stream(primaryKey: ['id'])
         .map(
-          (rows) => rows
+          (rows) =>
+          rows
               .map(
-                (row) => CampusPost.fromMap(
+                (row) =>
+                CampusPost.fromMap(
                   row['id'].toString(),
                   row,
                   completedIds: _completedPostIds.toList(),
                 ),
-              )
+          )
               .toList(),
-        );
+    );
   }
 
   /// Creates a new post or updates an existing post in Supabase.
@@ -343,20 +366,20 @@ Future<void> syncFcmToken({String? webVapidKey}) async {
     }).eq('org_code', orgCode);
   }
 
-  /// Fetches registered student members within the officer's organizational scope.
-  /// ACCESS -> BSCS; INTESS -> BSIT; JPCS / CICS SC -> all CICS students.
+  /// Fetches approved student members for the given organization from `org_memberships`.
   Future<List<UserProfile>> fetchOrgStudentMembers(String orgCode) async {
-    var query = _client.from('profiles').select().eq('role', 'student');
+    final rows = await _client
+        .from('org_memberships')
+        .select('profiles!inner(*)')
+        .eq('org_code', orgCode)
+        .eq('role', 'member')
+        .eq('status', 'approved');
 
-    final code = orgCode.toUpperCase();
-    if (code == 'ACCESS') {
-      query = query.eq('program', 'BSCS');
-    } else if (code == 'INTESS') {
-      query = query.eq('program', 'BSIT');
-    }
-
-    final rows = await query.order('full_name', ascending: true);
-    return rows.map((r) => UserProfile.fromMap(r)).toList();
+    final members = rows
+        .map((r) => UserProfile.fromMap(JsonRow.from(r['profiles'])))
+        .toList()
+      ..sort((a, b) => a.fullName.compareTo(b.fullName));
+    return members;
   }
 
   /// Fetches aggregated student task completion counts keyed by post ID (officers only).
@@ -395,11 +418,8 @@ Future<void> syncFcmToken({String? webVapidKey}) async {
     );
 
     if (rows is List) {
-      return rows
-        .whereType()
-        .map((r) => JsonRow.from(r))
-        .toList();
-}
+      return rows.whereType().map((r) => JsonRow.from(r)).toList();
+    }
     return const [];
   }
 
@@ -439,7 +459,7 @@ Future<void> syncFcmToken({String? webVapidKey}) async {
         .order('created_at', ascending: false)
         .map(
           (rows) => rows.map((r) => JsonRow.from(r)).toList(),
-        );
+    );
   }
 
   /// Marks a single notification as read.
@@ -461,4 +481,59 @@ Future<void> syncFcmToken({String? webVapidKey}) async {
         .eq('recipient_id', uid)
         .eq('is_read', false);
   }
+
+  /// Student taps "Join" on an org card (or re-applies after rejection).
+  Future<void> requestOrgMembership(String orgCode) async {
+    final userId = _client.auth.currentUser!.id;
+    await _client.from('org_memberships').upsert(
+      {
+        'user_id': userId,
+        'org_code': orgCode,
+        'role': 'member',
+        'status': 'pending',
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      onConflict: 'user_id,org_code',
+    );
+  }
+
+  /// Student directory fetches current status per org ('approved', 'pending', or 'rejected').
+  Future<Map<String, String>> fetchMyMembershipStatuses() async {
+    final userId = _client.auth.currentUser!.id;
+    final rows = await _client
+        .from('org_memberships')
+        .select('org_code, status')
+        .eq('user_id', userId);
+
+    return {
+      for (final row in rows) row['org_code'] as String: row['status'] as String,
+    };
+  }
+
+  /// Officer fetches all pending join requests (with student profile info) for their org.
+  Future<List<JsonRow>> fetchPendingOrgRequests(String orgCode) async {
+    final rows = await _client
+        .from('org_memberships')
+        .select('id, org_code, status, created_at, profiles!inner(id, full_name, student_number, program, year_level, email)')
+        .eq('org_code', orgCode)
+        .eq('status', 'pending')
+        .order('created_at', ascending: true);
+
+    return rows.map((r) => JsonRow.from(r)).toList();
+  }
+
+  /// Officer approves or rejects a student's membership request.
+  Future<void> reviewMembershipRequest({
+    required String membershipId,
+    required bool approve,
+  }) async {
+    await _client
+        .from('org_memberships')
+        .update({
+      'status': approve ? 'approved' : 'rejected',
+      'updated_at': DateTime.now().toIso8601String(),
+    })
+        .eq('id', membershipId);
+  }
 }
+

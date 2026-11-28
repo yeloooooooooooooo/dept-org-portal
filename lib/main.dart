@@ -99,61 +99,55 @@ class _MainNavShellState extends State<MainNavShell> {
   Set<String>? _knownPostIds;
 
   @override
-void initState() {
-  super.initState();
-  _listenForNewAnnouncements();
-  _initPushNotifications();
-}
-
-Future<void> _initPushNotifications() async {
-  try {
-    await PortalRepository.instance.syncFcmToken();
-  } catch (_) {
-    // Ignore token errors if push permission is denied or unsupported on current target
+  void initState() {
+    super.initState();
+    _listenForNewAnnouncements();
+    _initPushNotifications();
   }
 
-  FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
-    final uid = Supabase.instance.client.auth.currentUser?.id;
-    if (uid != null && uid.isNotEmpty && newToken.isNotEmpty) {
-      await Supabase.instance.client
-          .from('profiles')
-          .update({'fcm_token': newToken})
-          .eq('id', uid);
+  Future<void> _initPushNotifications() async {
+    try {
+      await PortalRepository.instance.syncFcmToken();
+    } catch (_) {
+      // Ignore token errors if push permission is denied or unsupported on current target
     }
-  });
 
-  // App opened from background by tapping a notification
-  FirebaseMessaging.onMessageOpenedApp.listen((_) {
-    if (mounted) {
+    FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid != null && uid.isNotEmpty && newToken.isNotEmpty) {
+        await Supabase.instance.client
+            .from('profiles')
+            .update({'fcm_token': newToken})
+            .eq('id', uid);
+      }
+    });
+
+    FirebaseMessaging.onMessageOpenedApp.listen((_) {
+      if (mounted) {
+        setState(() => _selectedIndex = 0);
+      }
+    });
+
+    final initialMsg = await FirebaseMessaging.instance.getInitialMessage();
+    if (initialMsg != null && mounted) {
       setState(() => _selectedIndex = 0);
     }
-  });
-
-  // App launched from terminated (closed) state by tapping a notification
-  final initialMsg = await FirebaseMessaging.instance.getInitialMessage();
-  if (initialMsg != null && mounted) {
-    setState(() => _selectedIndex = 0);
   }
-}
 
   void _listenForNewAnnouncements() {
     _postSub = PortalRepository.instance.watchPosts().listen((posts) {
       final currentIds = posts.map((p) => p.id).toSet();
 
-      // First snapshot: record existing posts without popping up notifications
       if (_knownPostIds == null) {
         _knownPostIds = currentIds;
         return;
       }
 
-      // Detect newly added published posts
-      // Detect newly added published posts relevant to the user's program
       final newPosts = posts
           .where((p) =>
-              !_knownPostIds!.contains(p.id) &&
-              p.isPublished &&
-              !p.isArchived &&
-              PortalRepository.instance.isOrgAllowedForCurrentUser(p.orgCode))
+      !_knownPostIds!.contains(p.id) &&
+          p.isPublished &&
+          !p.isArchived)
           .toList();
 
       _knownPostIds = currentIds;
@@ -164,7 +158,7 @@ Future<void> _initPushNotifications() async {
     });
   }
 
-void _showAnnouncementPopup(CampusPost post) {
+  void _showAnnouncementPopup(CampusPost post) {
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     final controller = messenger.showSnackBar(
@@ -257,28 +251,28 @@ void _showAnnouncementPopup(CampusPost post) {
       body: pages[_selectedIndex],
       floatingActionButton: isOfficer && _selectedIndex == 0
           ? FloatingActionButton.extended(
-              backgroundColor: const Color(0xFF0F2547),
-              foregroundColor: Colors.white,
-              onPressed: () async {
-                final created = await Navigator.push<bool>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CreatePostScreen(
-                      orgCode: PortalRepository.instance.currentUser.orgCode,
-                    ),
-                  ),
-                );
-                if (created == true) setState(() {});
-              },
-              icon: const Icon(
-                Icons.add_circle_outline,
-                color: Color(0xFFD4AF37),
+        backgroundColor: const Color(0xFF0F2547),
+        foregroundColor: Colors.white,
+        onPressed: () async {
+          final created = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CreatePostScreen(
+                orgCode: PortalRepository.instance.currentUser.orgCode,
               ),
-              label: const Text(
-                'Post Update',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-            )
+            ),
+          );
+          if (created == true) setState(() {});
+        },
+        icon: const Icon(
+          Icons.add_circle_outline,
+          color: Color(0xFFD4AF37),
+        ),
+        label: const Text(
+          'Post Update',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+      )
           : null,
       bottomNavigationBar: SafeArea(
         child: Padding(
@@ -431,11 +425,16 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
   String _selectedCategory = 'All';
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  Set<String> _approvedOrgs = {};
+  bool _membershipsLoaded = false;
 
-  List<String> get _orgs => [
-        'All',
-        ...PortalRepository.instance.allowedOrgCodes,
-      ];
+  static const _orgs = [
+    'All',
+    'JPCS',
+    'ACCESS',
+    'INTESS',
+    'CICS SC',
+  ];
 
   static const _categories = [
     'All',
@@ -444,6 +443,33 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
     'Membership Fee',
     'Educational',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadApprovedMemberships();
+  }
+
+  Future<void> _loadApprovedMemberships() async {
+    final repo = PortalRepository.instance;
+    if (!repo.isLoggedIn || widget.isOfficer) {
+      if (mounted) setState(() => _membershipsLoaded = true);
+      return;
+    }
+    try {
+      final statuses = await repo.fetchMyMembershipStatuses();
+      if (!mounted) return;
+      setState(() {
+        _approvedOrgs = statuses.entries
+            .where((e) => e.value == 'approved')
+            .map((e) => e.key)
+            .toSet();
+        _membershipsLoaded = true;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _membershipsLoaded = true);
+    }
+  }
 
   @override
   void dispose() {
@@ -465,10 +491,11 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
         return Icons.auto_awesome_rounded;
     }
   }
+
   void _openNotificationsSheet(
-    BuildContext context,
-    List<JsonRow> notifications,
-  ) {
+      BuildContext context,
+      List<JsonRow> notifications,
+      ) {
     const navy = Color(0xFF0F2547);
     const slateSub = Color(0xFF64748B);
     const cardBorder = Color(0xFFE2E8F0);
@@ -545,7 +572,7 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                     child: ListView.separated(
                       itemCount: notifications.length,
                       separatorBuilder: (_, _) =>
-                          const Divider(height: 1, color: cardBorder),
+                      const Divider(height: 1, color: cardBorder),
                       itemBuilder: (context, index) {
                         final item = notifications[index];
                         final id = item['id']?.toString() ?? '';
@@ -556,7 +583,7 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
 
                         return ListTile(
                           contentPadding:
-                              const EdgeInsets.symmetric(vertical: 6),
+                          const EdgeInsets.symmetric(vertical: 6),
                           leading: Icon(
                             isRead
                                 ? Icons.notifications_none_rounded
@@ -568,7 +595,7 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                             style: TextStyle(
                               fontSize: 13.5,
                               fontWeight:
-                                  isRead ? FontWeight.w600 : FontWeight.w800,
+                              isRead ? FontWeight.w600 : FontWeight.w800,
                               color: navy,
                             ),
                           ),
@@ -860,7 +887,7 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
     );
   }
 
-@override
+  @override
   Widget build(BuildContext context) {
     const navy = Color(0xFF0F2547);
     const gold = Color(0xFFD4AF37);
@@ -883,15 +910,16 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
           builder: (context, snapshot) {
             final allPosts = snapshot.data ?? const <CampusPost>[];
             final publishedPosts = allPosts
-                .where((p) =>
-                    p.isPublished &&
-                    !p.isArchived &&
-                    repo.isOrgAllowedForCurrentUser(p.orgCode))
+                .where((p) => p.isPublished && !p.isArchived)
                 .toList();
-            final pendingCount = publishedPosts.where((p) => !p.isDone).length;
+            final pendingCount = publishedPosts
+                .where((p) =>
+            !p.isDone &&
+                (isOfficer || _approvedOrgs.contains(p.orgCode)))
+                .length;
 
-            final orgPosts =
-                allPosts.where((p) => p.orgCode == user.orgCode && !p.isArchived);
+            final orgPosts = allPosts
+                .where((p) => p.orgCode == user.orgCode && !p.isArchived);
             final orgLiveCount = orgPosts.where((p) => p.isPublished).length;
             final orgDraftCount = orgPosts.where((p) => !p.isPublished).length;
 
@@ -1004,7 +1032,7 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                         isLabelVisible: unread > 0,
                                         label: Text('$unread'),
                                         backgroundColor:
-                                            const Color(0xFFDC2626),
+                                        const Color(0xFFDC2626),
                                         child: const Icon(
                                           Icons.notifications_outlined,
                                           color: gold,
@@ -1062,7 +1090,7 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                         ),
                       ] else ...[
                         Text(
-                          'Hey $firstName! 👋',
+                          'Hey, $firstName! 👋',
                           style: const TextStyle(
                             fontSize: 26,
                             fontWeight: FontWeight.w800,
@@ -1120,16 +1148,16 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                 ),
                                 suffixIcon: _searchQuery.isNotEmpty
                                     ? IconButton(
-                                        icon: const Icon(
-                                          Icons.close,
-                                          size: 18,
-                                          color: slateSub,
-                                        ),
-                                        onPressed: () {
-                                          _searchController.clear();
-                                          setState(() => _searchQuery = '');
-                                        },
-                                      )
+                                  icon: const Icon(
+                                    Icons.close,
+                                    size: 18,
+                                    color: slateSub,
+                                  ),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() => _searchQuery = '');
+                                  },
+                                )
                                     : null,
                                 border: InputBorder.none,
                                 contentPadding: const EdgeInsets.symmetric(
@@ -1308,34 +1336,39 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                   PortalResponsiveGrid(
                     spacing: 16,
                     children: filteredPosts.map((post) {
+                      final isLockedForStudent = !isOfficer &&
+                          _membershipsLoaded &&
+                          !_approvedOrgs.contains(post.orgCode);
+
                       final gradientColors = switch (post.category) {
                         'Events' => const [
-                            Color(0xFF0F2547),
-                            Color(0xFF2563EB),
-                          ],
+                          Color(0xFF0F2547),
+                          Color(0xFF2563EB),
+                        ],
                         'Merch' => const [
-                            Color(0xFF1E293B),
-                            Color(0xFFB45309),
-                          ],
+                          Color(0xFF1E293B),
+                          Color(0xFFB45309),
+                        ],
                         'Membership Fee' => const [
-                            Color(0xFF064E3B),
-                            Color(0xFF059669),
-                          ],
+                          Color(0xFF064E3B),
+                          Color(0xFF059669),
+                        ],
                         'Educational' => const [
-                            Color(0xFF311042),
-                            Color(0xFF7C3AED),
-                          ],
+                          Color(0xFF311042),
+                          Color(0xFF7C3AED),
+                        ],
                         _ => const [Color(0xFF0F2547), Color(0xFF1E3A8A)],
                       };
 
                       return InkWell(
-                        onTap: () {
-                          Navigator.push(
+                        onTap: () async {
+                          await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => EventDetailsScreen(post: post),
                             ),
                           );
+                          await _loadApprovedMemberships();
                         },
                         borderRadius: BorderRadius.circular(20),
                         child: Container(
@@ -1373,20 +1406,20 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                         _categoryIcon(post.category),
                                         size: 62,
                                         color:
-                                            Colors.white.withValues(alpha: 0.14),
+                                        Colors.white.withValues(alpha: 0.14),
                                       ),
                                     ),
                                     Column(
                                       crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
+                                          MainAxisAlignment.spaceBetween,
                                           children: [
                                             Container(
                                               padding:
-                                                  const EdgeInsets.symmetric(
+                                              const EdgeInsets.symmetric(
                                                 horizontal: 9,
                                                 vertical: 4,
                                               ),
@@ -1394,7 +1427,7 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                                 color: Colors.white
                                                     .withValues(alpha: 0.18),
                                                 borderRadius:
-                                                    BorderRadius.circular(8),
+                                                BorderRadius.circular(8),
                                               ),
                                               child: Text(
                                                 post.category.toUpperCase(),
@@ -1408,14 +1441,14 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                             ),
                                             Container(
                                               padding:
-                                                  const EdgeInsets.symmetric(
+                                              const EdgeInsets.symmetric(
                                                 horizontal: 9,
                                                 vertical: 4,
                                               ),
                                               decoration: BoxDecoration(
                                                 color: gold,
                                                 borderRadius:
-                                                    BorderRadius.circular(8),
+                                                BorderRadius.circular(8),
                                               ),
                                               child: Text(
                                                 post.dateBadge,
@@ -1436,14 +1469,55 @@ class _CampusHomeScreenState extends State<CampusHomeScreen> {
                                               size: 28,
                                             ),
                                             const SizedBox(width: 8),
-                                            Text(
-                                              post.orgCode,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 12.5,
+                                            Expanded(
+                                              child: Text(
+                                                post.orgCode,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 12.5,
+                                                ),
                                               ),
                                             ),
+                                            if (isLockedForStudent)
+                                              Container(
+                                                padding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 3.5,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.black
+                                                      .withValues(alpha: 0.35),
+                                                  borderRadius:
+                                                  BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                    color: Colors.white
+                                                        .withValues(alpha: 0.25),
+                                                  ),
+                                                ),
+                                                child: const Row(
+                                                  mainAxisSize:
+                                                  MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.lock_outline_rounded,
+                                                      size: 11,
+                                                      color: Colors.white,
+                                                    ),
+                                                    SizedBox(width: 4),
+                                                    Text(
+                                                      'Members Only',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                        FontWeight.w800,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
                                           ],
                                         ),
                                       ],
