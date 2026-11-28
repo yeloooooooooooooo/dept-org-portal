@@ -47,7 +47,16 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 
-# Firebase Admin / Service Account private keys (NEVER commit)
+# Firebase Admin SDK / Google service account keys (NEVER commit)
 *firebase-adminsdk*.json
 *service-account*.json
+*serviceAccount*.json
+
+# Local environment & Supabase secrets
 .env
+.env.*
+supabase/.env
+supabase/.temp/
+
+# Local IDE metadata (prevents noisy diffs)
+.idea/

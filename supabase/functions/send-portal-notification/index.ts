@@ -172,7 +172,6 @@ Deno.serve(async (req) => {
 
     const fcmResult = await fcmRes.json();
     if (!fcmRes.ok) {
-      // Clear stale/unregistered token if FCM reports it is no longer valid
       const errorCode = fcmResult?.error?.details?.[0]?.errorCode;
       if (errorCode === "UNREGISTERED") {
         await supabase
